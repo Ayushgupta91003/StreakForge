@@ -653,6 +653,39 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
     }
 
     if (_isEditing) {
+      // If start date moved forward, clean up records before new start date
+      final oldStartDate = widget.existingHabit!.createdAt;
+      final newStartOnly = DateTime(_startDate.year, _startDate.month, _startDate.day);
+      final oldStartOnly = DateTime(oldStartDate.year, oldStartDate.month, oldStartDate.day);
+
+      if (newStartOnly.isAfter(oldStartOnly)) {
+        // Confirm with user
+        final shouldDelete = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Remove old entries?'),
+            content: const Text(
+              'Moving the start date forward will remove all entries before the new start date. Continue?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Yes, remove'),
+              ),
+            ],
+          ),
+        );
+        if (shouldDelete != true) return;
+
+        // Delete old records
+        final recordRepo = ref.read(habitRecordRepositoryProvider);
+        await recordRepo.deleteRecordsBeforeDate(habit.id, newStartOnly);
+      }
+
       await ref.read(habitListProvider.notifier).updateHabit(habit);
     } else {
       final newId = await ref.read(habitListProvider.notifier).addHabit(habit);

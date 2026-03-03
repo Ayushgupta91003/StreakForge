@@ -11,132 +11,27 @@ import 'package:streak_forge/core/utils/date_utils.dart';
 import 'package:streak_forge/core/constants/app_icons.dart';
 import 'package:streak_forge/core/constants/motivational_quotes.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final navIndex = ref.watch(bottomNavIndexProvider);
-
-    final screens = [
-      const _HabitListView(),
-      const SettingsScreen(),
-    ];
-
-    return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: screens[navIndex],
-      ),
-      floatingActionButton: navIndex == 0
-          ? _buildFAB(context)
-          : null,
-      bottomNavigationBar: _buildBottomNav(context, ref, navIndex),
-    );
-  }
-
-  Widget _buildFAB(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CreateHabitScreen()),
-        );
-      },
-      icon: const Icon(Icons.add_rounded, size: 24),
-      label: const Text('New Habit'),
-    );
-  }
-
-  Widget _buildBottomNav(BuildContext context, WidgetRef ref, int index) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(
-          top: BorderSide(
-            color: AppColors.surfaceVariant.withOpacity(0.5),
-            width: 0.5,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                label: 'Habits',
-                isSelected: index == 0,
-                onTap: () => ref.read(bottomNavIndexProvider.notifier).state = 0,
-              ),
-              _NavItem(
-                icon: Icons.settings_rounded,
-                label: 'Settings',
-                isSelected: index == 1,
-                onTap: () => ref.read(bottomNavIndexProvider.notifier).state = 1,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Theme.of(context).colorScheme.primary : AppColors.textTertiary,
-              size: 22,
-            ),
-            if (isSelected) ...[
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ],
-        ),
+    return Scaffold(
+      body: const _HabitListView(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateHabitScreen()),
+          );
+        },
+        icon: const Icon(Icons.add_rounded, size: 24),
+        label: const Text('New Habit'),
       ),
     );
   }
 }
+
 
 // ─── Habit List View ─────────────────────────────────────────────────────────
 
@@ -183,7 +78,17 @@ class _HabitListView extends ConsumerWidget {
               icon: const Icon(Icons.calendar_today_rounded, size: 20),
               onPressed: () => _pickDate(context, ref),
             ),
-            const SizedBox(width: 8),
+            // Settings
+            IconButton(
+              icon: const Icon(Icons.settings_rounded, size: 22),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+            ),
+            const SizedBox(width: 4),
           ],
         ),
 

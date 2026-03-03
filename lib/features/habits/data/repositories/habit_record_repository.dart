@@ -120,6 +120,18 @@ class HabitRecordRepository {
     });
   }
 
+  /// Delete all records for a habit before a given date
+  Future<int> deleteRecordsBeforeDate(int habitId, DateTime date) async {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    return await _isar.writeTxn(() async {
+      return await _isar.habitRecords
+          .filter()
+          .habitIdEqualTo(habitId)
+          .dateLessThan(dateOnly)
+          .deleteAll();
+    });
+  }
+
   /// Get completed count for a habit
   Future<int> getCompletedCount(int habitId) async {
     return await _isar.habitRecords

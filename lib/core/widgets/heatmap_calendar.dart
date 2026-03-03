@@ -11,7 +11,7 @@ class HeatmapCalendar extends StatelessWidget {
     super.key,
     required this.data,
     required this.color,
-    this.months = 6,
+    this.months = 12,
   });
 
   @override
