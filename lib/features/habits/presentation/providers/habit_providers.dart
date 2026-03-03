@@ -174,6 +174,16 @@ final habitHeatmapProvider =
   return map;
 });
 
+/// Weekly trend data for a habit (last 8 weeks)
+final habitWeeklyTrendProvider =
+    FutureProvider.family<List<WeeklyData>, int>((ref, habitId) async {
+  final recordRepo = ref.watch(habitRecordRepositoryProvider);
+  recordRepo.watchAll().listen((_) => ref.invalidateSelf());
+
+  final records = await recordRepo.getAllForHabit(habitId);
+  return StreakCalculator.getWeeklyTrend(records, 8);
+});
+
 // ─── Categories ──────────────────────────────────────────────────────────────
 
 class CategoryListNotifier extends AsyncNotifier<List<Category>> {

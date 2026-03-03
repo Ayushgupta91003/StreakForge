@@ -10,6 +10,7 @@ import 'package:streak_forge/features/analytics/presentation/screens/stats_scree
 import 'package:streak_forge/features/settings/presentation/screens/settings_screen.dart';
 import 'package:streak_forge/core/utils/date_utils.dart';
 import 'package:streak_forge/core/constants/app_icons.dart';
+import 'package:streak_forge/core/constants/motivational_quotes.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -202,6 +203,13 @@ class _HabitListView extends ConsumerWidget {
               ref.read(selectedDateProvider.notifier).state = date;
             },
           ),
+        ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+        // Motivational quote
+        SliverToBoxAdapter(
+          child: _QuoteBanner(),
         ),
 
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
@@ -749,3 +757,67 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
+// ─── Motivational Quote Banner ───────────────────────────────────────────────
+
+class _QuoteBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final quote = MotivationalQuotes.getDaily();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primary.withOpacity(0.12),
+            AppColors.accent.withOpacity(0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.2),
+          width: 0.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(
+            '💡',
+            style: const TextStyle(fontSize: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '"${quote['quote']}"',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontStyle: FontStyle.italic,
+                    color: AppColors.textSecondary,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '— ${quote['author']}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary.withOpacity(0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

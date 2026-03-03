@@ -7,7 +7,9 @@ import 'package:streak_forge/features/habits/data/models/habit.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
 import 'package:streak_forge/features/habits/presentation/screens/create_habit_screen.dart';
 import 'package:streak_forge/core/widgets/heatmap_calendar.dart';
+import 'package:streak_forge/core/widgets/trend_chart.dart';
 import 'package:streak_forge/features/habits/domain/streak_calculator.dart';
+import 'package:streak_forge/features/reminders/presentation/screens/reminder_screen.dart';
 
 class HabitDetailScreen extends ConsumerWidget {
   final int habitId;
@@ -166,6 +168,62 @@ class HabitDetailScreen extends ConsumerWidget {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+
+              // ─── Trend Chart ───
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Weekly Trend',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.surfaceVariant.withOpacity(0.5),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: ref.watch(habitWeeklyTrendProvider(habitId)).when(
+                          loading: () => const SizedBox(
+                            height: 180,
+                            child: Center(child: CircularProgressIndicator()),
+                          ),
+                          error: (e, _) => Text('Error: \$e'),
+                          data: (data) => TrendChart(
+                            data: data,
+                            color: color,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // ─── Reminders Button ───
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: _ReminderButton(
+                    habitId: habitId,
+                    habitName: habit.name,
+                    color: color,
                   ),
                 ),
               ),
@@ -515,6 +573,93 @@ class _InfoRow extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Reminder Button ─────────────────────────────────────────────────────────
+
+class _ReminderButton extends StatelessWidget {
+  final int habitId;
+  final String habitName;
+  final Color color;
+
+  const _ReminderButton({
+    required this.habitId,
+    required this.habitName,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ReminderManagementScreen(
+              habitId: habitId,
+              habitName: habitName,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: AppColors.surfaceVariant.withOpacity(0.5),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.notifications_active_rounded,
+                color: color,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Reminders',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    'Set up daily reminders for this habit',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textTertiary,
+              size: 22,
+            ),
+          ],
+        ),
       ),
     );
   }

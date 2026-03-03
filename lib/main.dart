@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:streak_forge/core/theme/app_theme.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
 import 'package:streak_forge/features/habits/presentation/screens/home_screen.dart';
+import 'package:streak_forge/services/notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,9 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // Initialize notifications
+  await NotificationService().initialize();
+
   runApp(const ProviderScope(child: StreakForgeApp()));
 }
 
@@ -32,7 +36,6 @@ class StreakForgeApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Initialize database
     final dbAsync = ref.watch(isarProvider);
 
     return MaterialApp(
@@ -49,9 +52,9 @@ class StreakForgeApp extends ConsumerWidget {
                 const Icon(Icons.error_rounded,
                     color: AppColors.error, size: 48),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   'Failed to initialize database',
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: TextStyle(color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -83,39 +86,66 @@ class _SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Logo
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.primary, AppColors.primaryDark],
-                ),
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: 2,
+            // Logo with animated glow
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 1200),
+              curve: Curves.easeOut,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: 0.5 + value * 0.5,
+                  child: Opacity(
+                    opacity: value,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [AppColors.primary, AppColors.primaryDark],
+                        ),
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3 * value),
+                            blurRadius: 20,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.local_fire_department_rounded,
+                        color: Colors.white,
+                        size: 42,
+                      ),
+                    ),
                   ),
-                ],
-              ),
-              child: const Icon(
-                Icons.local_fire_department_rounded,
-                color: Colors.white,
-                size: 42,
-              ),
+                );
+              },
             ),
             const SizedBox(height: 24),
-            const Text(
-              'StreakForge',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
-                letterSpacing: -0.5,
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOut,
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value,
+                  child: Transform.translate(
+                    offset: Offset(0, 10 * (1 - value)),
+                    child: child,
+                  ),
+                );
+              },
+              child: const Text(
+                'StreakForge',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
+                ),
               ),
             ),
             const SizedBox(height: 8),
