@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:streak_forge/features/habits/data/models/habit.dart';
 import 'package:streak_forge/features/habits/data/models/habit_record.dart';
 
@@ -41,7 +42,11 @@ class HabitStats {
 }
 
 class StreakCalculator {
-  /// Calculate comprehensive stats for a habit
+  /// Calculate comprehensive stats for a habit.
+  ///
+  /// Uses the earlier of [habit.createdAt] and the earliest record date as
+  /// the effective start so that marking days before creation doesn't inflate
+  /// the success percentage.
   static HabitStats calculateStats(Habit habit, List<HabitRecord> records) {
     if (records.isEmpty) return HabitStats.empty();
 
@@ -57,8 +62,20 @@ class StreakCalculator {
       habit.createdAt.day,
     );
 
-    // Total days since habit creation (at least 1)
-    final totalDays = today.difference(createdDate).inDays + 1;
+    // Find the earliest record date
+    final earliestRecordDate = DateTime(
+      sorted.first.date.year,
+      sorted.first.date.month,
+      sorted.first.date.day,
+    );
+
+    // Effective start = whichever is earlier: createdAt or earliest record
+    final effectiveStart = createdDate.isBefore(earliestRecordDate)
+        ? createdDate
+        : earliestRecordDate;
+
+    // Total days from effective start to today (at least 1)
+    final totalDays = math.max(1, today.difference(effectiveStart).inDays + 1);
 
     // Create a set of completed dates
     final completedDates = <DateTime>{};
@@ -71,11 +88,13 @@ class StreakCalculator {
     }
 
     final totalCompletions = completedDates.length;
-    final missedDays = totalDays - totalCompletions;
+    final missedDays = math.max(0, totalDays - totalCompletions);
 
-    // Success percentage: completions out of total days
+    // Success percentage: completions out of total days, capped at 100%
     final completionPercentage =
-        totalDays > 0 ? (totalCompletions / totalDays) * 100.0 : 0.0;
+        totalDays > 0
+            ? ((totalCompletions / totalDays) * 100.0).clamp(0.0, 100.0)
+            : 0.0;
 
     // ── Streak Calculation ──
 
@@ -85,7 +104,7 @@ class StreakCalculator {
     while (completedDates.contains(checkDate)) {
       currentStreak++;
       checkDate = checkDate.subtract(const Duration(days: 1));
-      if (checkDate.isBefore(createdDate)) break;
+      if (checkDate.isBefore(effectiveStart)) break;
     }
 
     // Walk through all days to find best streak, worst streak, longest break
@@ -96,7 +115,7 @@ class StreakCalculator {
     final allStreaks = <int>[];
 
     for (int i = 0; i < totalDays; i++) {
-      final date = createdDate.add(Duration(days: i));
+      final date = effectiveStart.add(Duration(days: i));
       if (completedDates.contains(date)) {
         tempStreak++;
         if (tempBreak > longestBreak) longestBreak = tempBreak;
@@ -124,10 +143,13 @@ class StreakCalculator {
     }
 
     // ── Average Completions per Week ──
-    // Use actual number of complete weeks since creation, minimum 1
+    // Total weeks from effective start, at least 1 to avoid division by zero
     final double totalWeeks = totalDays / 7.0;
-    final avgPerWeek =
-        totalWeeks >= 1.0 ? totalCompletions / totalWeeks : totalCompletions.toDouble();
+    final avgPerWeek = totalWeeks >= 1.0
+        ? totalCompletions / totalWeeks
+        : totalCompletions.toDouble();
+    // Cap avg/week to 7 for daily habits (can't do more than 7 days in a week)
+    final cappedAvgPerWeek = math.min(avgPerWeek, 7.0);
 
     // ── Consistency Score (0-100) ──
     // Weighted: 50% completion rate, 25% current streak factor, 25% break penalty
@@ -151,7 +173,7 @@ class StreakCalculator {
       completionPercentage: completionPercentage,
       consistencyScore: consistencyScore,
       missedDays: missedDays,
-      avgCompletionsPerWeek: avgPerWeek,
+      avgCompletionsPerWeek: cappedAvgPerWeek,
     );
   }
 

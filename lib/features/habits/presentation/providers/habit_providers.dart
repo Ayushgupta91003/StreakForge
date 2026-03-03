@@ -49,7 +49,10 @@ class HabitListNotifier extends AsyncNotifier<List<Habit>> {
 
   Future<int> addHabit(Habit habit) async {
     final repo = ref.read(habitRepositoryProvider);
-    habit.createdAt = DateTime.now();
+    // Don't override createdAt if it was already set (e.g. from date picker)
+    if (habit.id == Isar.autoIncrement) {
+      habit.createdAt = habit.createdAt;
+    }
     final id = await repo.save(habit);
     ref.invalidateSelf();
     return id;
@@ -109,6 +112,10 @@ class TodayRecordsNotifier extends AsyncNotifier<Map<int, HabitRecord>> {
     final repo = ref.read(habitRecordRepositoryProvider);
     final date = ref.read(selectedDateProvider);
     await repo.toggleCompletion(habitId, date);
+
+    // Auto-adjust createdAt if marking before the start date
+    await _adjustStartDateIfNeeded(habitId, date);
+
     ref.invalidateSelf();
   }
 
@@ -127,7 +134,30 @@ class TodayRecordsNotifier extends AsyncNotifier<Map<int, HabitRecord>> {
       isMinTarget: isMinTarget,
       targetValue: targetValue,
     );
+
+    // Auto-adjust createdAt if marking before the start date
+    await _adjustStartDateIfNeeded(habitId, date);
+
     ref.invalidateSelf();
+  }
+
+  /// Moves habit.createdAt back if the user marks a day before the current start date
+  Future<void> _adjustStartDateIfNeeded(int habitId, DateTime date) async {
+    final habitRepo = ref.read(habitRepositoryProvider);
+    final habit = await habitRepo.getById(habitId);
+    if (habit == null) return;
+
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    final createdOnly = DateTime(
+      habit.createdAt.year,
+      habit.createdAt.month,
+      habit.createdAt.day,
+    );
+
+    if (dateOnly.isBefore(createdOnly)) {
+      habit.createdAt = dateOnly;
+      await habitRepo.save(habit);
+    }
   }
 }
 
