@@ -1,0 +1,751 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:streak_forge/core/theme/app_theme.dart';
+import 'package:streak_forge/features/habits/data/models/habit.dart';
+import 'package:streak_forge/features/habits/data/models/habit_record.dart';
+import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
+import 'package:streak_forge/features/habits/presentation/screens/create_habit_screen.dart';
+import 'package:streak_forge/features/habits/presentation/screens/habit_detail_screen.dart';
+import 'package:streak_forge/features/analytics/presentation/screens/stats_screen.dart';
+import 'package:streak_forge/features/settings/presentation/screens/settings_screen.dart';
+import 'package:streak_forge/core/utils/date_utils.dart';
+import 'package:streak_forge/core/constants/app_icons.dart';
+
+class HomeScreen extends ConsumerWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final navIndex = ref.watch(bottomNavIndexProvider);
+
+    final screens = [
+      const _HabitListView(),
+      const StatsScreen(),
+      const SettingsScreen(),
+    ];
+
+    return Scaffold(
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: screens[navIndex],
+      ),
+      floatingActionButton: navIndex == 0
+          ? _buildFAB(context)
+          : null,
+      bottomNavigationBar: _buildBottomNav(context, ref, navIndex),
+    );
+  }
+
+  Widget _buildFAB(BuildContext context) {
+    return FloatingActionButton.extended(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CreateHabitScreen()),
+        );
+      },
+      icon: const Icon(Icons.add_rounded, size: 24),
+      label: const Text('New Habit'),
+    );
+  }
+
+  Widget _buildBottomNav(BuildContext context, WidgetRef ref, int index) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+          top: BorderSide(
+            color: AppColors.surfaceVariant.withOpacity(0.5),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _NavItem(
+                icon: Icons.home_rounded,
+                label: 'Habits',
+                isSelected: index == 0,
+                onTap: () => ref.read(bottomNavIndexProvider.notifier).state = 0,
+              ),
+              _NavItem(
+                icon: Icons.analytics_rounded,
+                label: 'Stats',
+                isSelected: index == 1,
+                onTap: () => ref.read(bottomNavIndexProvider.notifier).state = 1,
+              ),
+              _NavItem(
+                icon: Icons.settings_rounded,
+                label: 'Settings',
+                isSelected: index == 2,
+                onTap: () => ref.read(bottomNavIndexProvider.notifier).state = 2,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.primary.withOpacity(0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? AppColors.primary : AppColors.textTertiary,
+              size: 22,
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Habit List View ─────────────────────────────────────────────────────────
+
+class _HabitListView extends ConsumerWidget {
+  const _HabitListView();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final habitsAsync = ref.watch(habitListProvider);
+    final recordsAsync = ref.watch(todayRecordsProvider);
+    final selectedDate = ref.watch(selectedDateProvider);
+
+    return CustomScrollView(
+      slivers: [
+        // App Bar
+        SliverAppBar(
+          floating: true,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'StreakForge',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              Text(
+                selectedDate.isToday
+                    ? 'Today, ${selectedDate.shortFormatted}'
+                    : selectedDate.formatted,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            // Date picker
+            IconButton(
+              icon: const Icon(Icons.calendar_today_rounded, size: 20),
+              onPressed: () => _pickDate(context, ref),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+
+        // Date selector row
+        SliverToBoxAdapter(
+          child: _DateCarousel(
+            selectedDate: selectedDate,
+            onDateSelected: (date) {
+              ref.read(selectedDateProvider.notifier).state = date;
+            },
+          ),
+        ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+        // Habit list
+        habitsAsync.when(
+          loading: () => const SliverFillRemaining(
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, _) => SliverFillRemaining(
+            child: Center(child: Text('Error: $e')),
+          ),
+          data: (habits) {
+            if (habits.isEmpty) {
+              return SliverFillRemaining(
+                child: _EmptyState(),
+              );
+            }
+
+            return recordsAsync.when(
+              loading: () => const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, _) => SliverFillRemaining(
+                child: Center(child: Text('Error: $e')),
+              ),
+              data: (records) => SliverPadding(
+                padding: const EdgeInsets.only(bottom: 100),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _HabitCard(
+                      habit: habits[index],
+                      record: records[habits[index].id],
+                    ),
+                    childCount: habits.length,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickDate(BuildContext context, WidgetRef ref) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: ref.read(selectedDateProvider),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: AppColors.surface,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (date != null) {
+      ref.read(selectedDateProvider.notifier).state = date;
+    }
+  }
+}
+
+// ─── Date Carousel ───────────────────────────────────────────────────────────
+
+class _DateCarousel extends StatefulWidget {
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onDateSelected;
+
+  const _DateCarousel({
+    required this.selectedDate,
+    required this.onDateSelected,
+  });
+
+  @override
+  State<_DateCarousel> createState() => _DateCarouselState();
+}
+
+class _DateCarouselState extends State<_DateCarousel> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Scroll to show today
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final dates = List.generate(
+      14,
+      (i) => today.subtract(Duration(days: 13 - i)),
+    );
+
+    return SizedBox(
+      height: 72,
+      child: ListView.builder(
+        controller: _scrollController,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: dates.length,
+        itemBuilder: (context, index) {
+          final date = dates[index];
+          final isSelected = date.isSameDay(widget.selectedDate);
+          final isToday = date.isToday;
+
+          return GestureDetector(
+            onTap: () => widget.onDateSelected(date),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              width: 48,
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? AppColors.primary
+                    : isToday
+                        ? AppColors.primary.withOpacity(0.15)
+                        : AppColors.surface,
+                borderRadius: BorderRadius.circular(14),
+                border: isToday && !isSelected
+                    ? Border.all(color: AppColors.primary.withOpacity(0.4), width: 1)
+                    : null,
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    date.shortDayName.substring(0, 2),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: isSelected
+                          ? Colors.white.withOpacity(0.8)
+                          : AppColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${date.day}',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: isSelected
+                          ? Colors.white
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── Habit Card ──────────────────────────────────────────────────────────────
+
+class _HabitCard extends ConsumerWidget {
+  final Habit habit;
+  final HabitRecord? record;
+
+  const _HabitCard({
+    required this.habit,
+    this.record,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final color = Color(habit.color);
+    final isCompleted = record?.isCompleted ?? false;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HabitDetailScreen(habitId: habit.id),
+          ),
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isCompleted
+              ? color.withOpacity(0.12)
+              : AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isCompleted
+                ? color.withOpacity(0.3)
+                : AppColors.surfaceVariant.withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // Icon
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                AppIcons.getIcon(habit.icon),
+                color: color,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    habit.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      decoration: isCompleted
+                          ? TextDecoration.lineThrough
+                          : null,
+                      decorationColor: AppColors.textTertiary,
+                    ),
+                  ),
+                  if (habit.type == HabitType.frequency &&
+                      habit.targetValue != null) ...[
+                    const SizedBox(height: 6),
+                    _FrequencyProgress(
+                      value: record?.value ?? 0,
+                      target: habit.targetValue!,
+                      unit: habit.unit ?? '',
+                      color: color,
+                      isMinTarget: habit.isMinTarget,
+                    ),
+                  ],
+                  if (habit.description != null &&
+                      habit.description!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      habit.description!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textTertiary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Action
+            if (habit.type == HabitType.yesNo)
+              _YesNoToggle(
+                isCompleted: isCompleted,
+                color: color,
+                isPositive: habit.isPositive,
+                onTap: () {
+                  ref.read(todayRecordsProvider.notifier).toggleHabit(habit.id);
+                },
+              )
+            else
+              _FrequencyInput(
+                value: record?.value ?? 0,
+                color: color,
+                onIncrement: () {
+                  final newVal = (record?.value ?? 0) + 1;
+                  ref.read(todayRecordsProvider.notifier).updateFrequencyValue(
+                    habit.id,
+                    newVal,
+                    isMinTarget: habit.isMinTarget,
+                    targetValue: habit.targetValue ?? 0,
+                  );
+                },
+                onDecrement: () {
+                  final newVal = ((record?.value ?? 0) - 1).clamp(0.0, double.maxFinite).toDouble();
+                  ref.read(todayRecordsProvider.notifier).updateFrequencyValue(
+                    habit.id,
+                    newVal,
+                    isMinTarget: habit.isMinTarget,
+                    targetValue: habit.targetValue ?? 0,
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Yes/No Toggle ───────────────────────────────────────────────────────────
+
+class _YesNoToggle extends StatelessWidget {
+  final bool isCompleted;
+  final Color color;
+  final bool isPositive;
+  final VoidCallback onTap;
+
+  const _YesNoToggle({
+    required this.isCompleted,
+    required this.color,
+    required this.isPositive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: isCompleted ? color : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isCompleted ? color : AppColors.textTertiary,
+            width: 2,
+          ),
+        ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: isCompleted
+              ? Icon(
+                  Icons.check_rounded,
+                  key: const ValueKey('check'),
+                  color: Colors.white,
+                  size: 24,
+                )
+              : const SizedBox.shrink(key: ValueKey('empty')),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Frequency Input ─────────────────────────────────────────────────────────
+
+class _FrequencyInput extends StatelessWidget {
+  final double value;
+  final Color color;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+
+  const _FrequencyInput({
+    required this.value,
+    required this.color,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _CounterButton(
+          icon: Icons.remove_rounded,
+          color: color,
+          onTap: onDecrement,
+        ),
+        Container(
+          constraints: const BoxConstraints(minWidth: 36),
+          alignment: Alignment.center,
+          child: Text(
+            value == value.toInt() ? value.toInt().toString() : value.toStringAsFixed(1),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ),
+        _CounterButton(
+          icon: Icons.add_rounded,
+          color: color,
+          onTap: onIncrement,
+        ),
+      ],
+    );
+  }
+}
+
+class _CounterButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CounterButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: color, size: 18),
+      ),
+    );
+  }
+}
+
+// ─── Frequency Progress ──────────────────────────────────────────────────────
+
+class _FrequencyProgress extends StatelessWidget {
+  final double value;
+  final double target;
+  final String unit;
+  final Color color;
+  final bool isMinTarget;
+
+  const _FrequencyProgress({
+    required this.value,
+    required this.target,
+    required this.unit,
+    required this.color,
+    required this.isMinTarget,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = target > 0 ? (value / target).clamp(0.0, 1.0) : 0.0;
+    final displayValue = value == value.toInt()
+        ? value.toInt().toString()
+        : value.toStringAsFixed(1);
+    final displayTarget = target == target.toInt()
+        ? target.toInt().toString()
+        : target.toStringAsFixed(1);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$displayValue / $displayTarget $unit',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: color.withOpacity(0.1),
+            valueColor: AlwaysStoppedAnimation(color),
+            minHeight: 4,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Empty State ─────────────────────────────────────────────────────────────
+
+class _EmptyState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 90,
+              height: 90,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: const Icon(
+                Icons.local_fire_department_rounded,
+                color: AppColors.primary,
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'No habits yet',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Tap the + button to forge\nyour first streak!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
