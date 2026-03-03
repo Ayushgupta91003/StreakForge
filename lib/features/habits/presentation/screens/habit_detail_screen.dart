@@ -361,52 +361,71 @@ class _StatsSection extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Stats grid
-          GridView.count(
-            crossAxisCount: 3,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: 1.1,
-            children: [
-              _StatCard(
-                label: 'Best Streak',
-                value: '${stats.bestStreak}',
-                icon: Icons.emoji_events_rounded,
-                iconColor: AppColors.warning,
-              ),
-              _StatCard(
-                label: 'Total Done',
-                value: '${stats.totalCompletions}',
-                icon: Icons.check_circle_rounded,
-                iconColor: AppColors.success,
-              ),
-              _StatCard(
-                label: 'Success',
-                value: '${stats.completionPercentage.toStringAsFixed(0)}%',
-                icon: Icons.pie_chart_rounded,
-                iconColor: AppColors.info,
-              ),
-              _StatCard(
-                label: 'Worst Streak',
-                value: '${stats.worstStreak}',
-                icon: Icons.trending_down_rounded,
-                iconColor: AppColors.error,
-              ),
-              _StatCard(
-                label: 'Longest Break',
-                value: '${stats.longestBreak}',
-                icon: Icons.pause_circle_rounded,
-                iconColor: AppColors.textTertiary,
-              ),
-              _StatCard(
-                label: 'Consistency',
-                value: '${stats.consistencyScore.toStringAsFixed(0)}',
-                icon: Icons.speed_rounded,
-                iconColor: AppColors.accent,
-              ),
-            ],
+          // Stats grid – responsive Wrap layout
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = (constraints.maxWidth - 20) / 3;
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  SizedBox(
+                    width: cardWidth,
+                    child: _StatCard(
+                      label: 'Best Streak',
+                      value: '${stats.bestStreak}',
+                      icon: Icons.emoji_events_rounded,
+                      iconColor: AppColors.warning,
+                    ),
+                  ),
+                  SizedBox(
+                    width: cardWidth,
+                    child: _StatCard(
+                      label: 'Total Done',
+                      value: '${stats.totalCompletions}',
+                      icon: Icons.check_circle_rounded,
+                      iconColor: AppColors.success,
+                    ),
+                  ),
+                  SizedBox(
+                    width: cardWidth,
+                    child: _StatCard(
+                      label: 'Success',
+                      value: '${stats.completionPercentage.toStringAsFixed(0)}%',
+                      icon: Icons.pie_chart_rounded,
+                      iconColor: AppColors.info,
+                    ),
+                  ),
+                  SizedBox(
+                    width: cardWidth,
+                    child: _StatCard(
+                      label: 'Worst Streak',
+                      value: '${stats.worstStreak}',
+                      icon: Icons.trending_down_rounded,
+                      iconColor: AppColors.error,
+                    ),
+                  ),
+                  SizedBox(
+                    width: cardWidth,
+                    child: _StatCard(
+                      label: 'Longest Break',
+                      value: '${stats.longestBreak}',
+                      icon: Icons.pause_circle_rounded,
+                      iconColor: AppColors.textTertiary,
+                    ),
+                  ),
+                  SizedBox(
+                    width: cardWidth,
+                    child: _StatCard(
+                      label: 'Consistency',
+                      value: '${stats.consistencyScore.toStringAsFixed(0)}',
+                      icon: Icons.speed_rounded,
+                      iconColor: AppColors.accent,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -430,7 +449,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
@@ -440,26 +459,32 @@ class _StatCard extends StatelessWidget {
         ),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: iconColor, size: 20),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+          Icon(icon, color: iconColor, size: 18),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textTertiary,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textTertiary,
+              ),
             ),
           ),
         ],

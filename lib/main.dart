@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:streak_forge/core/theme/app_theme.dart';
+import 'package:streak_forge/core/theme/theme_provider.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
 import 'package:streak_forge/features/habits/presentation/screens/home_screen.dart';
 import 'package:streak_forge/services/notification_service.dart';
@@ -37,13 +38,14 @@ class StreakForgeApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dbAsync = ref.watch(isarProvider);
+    final primaryColor = ref.watch(themeColorProvider);
 
     return MaterialApp(
       title: 'StreakForge',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.darkTheme(primaryColor: primaryColor),
       home: dbAsync.when(
-        loading: () => const _SplashScreen(),
+        loading: () => _SplashScreen(primaryColor: primaryColor),
         error: (e, _) => Scaffold(
           body: Center(
             child: Column(
@@ -76,7 +78,9 @@ class StreakForgeApp extends ConsumerWidget {
 }
 
 class _SplashScreen extends StatelessWidget {
-  const _SplashScreen();
+  final Color primaryColor;
+
+  const _SplashScreen({required this.primaryColor});
 
   @override
   Widget build(BuildContext context) {
@@ -100,15 +104,20 @@ class _SplashScreen extends StatelessWidget {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [AppColors.primary, AppColors.primaryDark],
+                          colors: [
+                            primaryColor,
+                            HSLColor.fromColor(primaryColor)
+                                .withLightness(0.35)
+                                .toColor(),
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withOpacity(0.3 * value),
+                            color: primaryColor.withOpacity(0.3 * value),
                             blurRadius: 20,
                             spreadRadius: 2,
                           ),
@@ -157,12 +166,12 @@ class _SplashScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            const SizedBox(
+            SizedBox(
               width: 24,
               height: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation(AppColors.primary),
+                valueColor: AlwaysStoppedAnimation(primaryColor),
               ),
             ),
           ],

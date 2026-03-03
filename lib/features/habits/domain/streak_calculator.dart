@@ -57,7 +57,7 @@ class StreakCalculator {
       habit.createdAt.day,
     );
 
-    // Total days since habit creation
+    // Total days since habit creation (at least 1)
     final totalDays = today.difference(createdDate).inDays + 1;
 
     // Create a set of completed dates
@@ -72,16 +72,15 @@ class StreakCalculator {
 
     final totalCompletions = completedDates.length;
     final missedDays = totalDays - totalCompletions;
+
+    // Success percentage: completions out of total days
     final completionPercentage =
-        totalDays > 0 ? (totalCompletions / totalDays) * 100 : 0.0;
+        totalDays > 0 ? (totalCompletions / totalDays) * 100.0 : 0.0;
 
-    // Calculate streaks
+    // ── Streak Calculation ──
+
+    // Current streak (backwards from today)
     int currentStreak = 0;
-    int bestStreak = 0;
-    int worstStreak = totalDays > 0 ? totalDays : 0;
-    int longestBreak = 0;
-
-    // Calculate current streak (backwards from today)
     var checkDate = today;
     while (completedDates.contains(checkDate)) {
       currentStreak++;
@@ -89,38 +88,49 @@ class StreakCalculator {
       if (checkDate.isBefore(createdDate)) break;
     }
 
-    // Calculate best streak and longest break
-    int streak = 0;
-    int breakCount = 0;
+    // Walk through all days to find best streak, worst streak, longest break
+    int bestStreak = 0;
+    int longestBreak = 0;
+    int tempStreak = 0;
+    int tempBreak = 0;
+    final allStreaks = <int>[];
 
     for (int i = 0; i < totalDays; i++) {
       final date = createdDate.add(Duration(days: i));
       if (completedDates.contains(date)) {
-        streak++;
-        if (breakCount > longestBreak) longestBreak = breakCount;
-        breakCount = 0;
+        tempStreak++;
+        if (tempBreak > longestBreak) longestBreak = tempBreak;
+        tempBreak = 0;
       } else {
-        if (streak > 0 && streak < worstStreak) worstStreak = streak;
-        if (streak > bestStreak) bestStreak = streak;
-        streak = 0;
-        breakCount++;
+        if (tempStreak > 0) {
+          allStreaks.add(tempStreak);
+        }
+        if (tempStreak > bestStreak) bestStreak = tempStreak;
+        tempStreak = 0;
+        tempBreak++;
       }
     }
-    // Final check for last streak
-    if (streak > bestStreak) bestStreak = streak;
-    if (streak > 0 && streak < worstStreak) worstStreak = streak;
-    if (breakCount > longestBreak) longestBreak = breakCount;
+    // Handle final segment
+    if (tempStreak > 0) {
+      allStreaks.add(tempStreak);
+      if (tempStreak > bestStreak) bestStreak = tempStreak;
+    }
+    if (tempBreak > longestBreak) longestBreak = tempBreak;
 
-    // If no completed streaks at all
-    if (totalCompletions == 0) worstStreak = 0;
+    // Worst streak: the smallest non-zero streak
+    int worstStreak = 0;
+    if (allStreaks.isNotEmpty) {
+      worstStreak = allStreaks.reduce((a, b) => a < b ? a : b);
+    }
 
-    // Average completions per week
-    final totalWeeks = totalDays / 7.0;
+    // ── Average Completions per Week ──
+    // Use actual number of complete weeks since creation, minimum 1
+    final double totalWeeks = totalDays / 7.0;
     final avgPerWeek =
-        totalWeeks > 0 ? totalCompletions / totalWeeks : 0.0;
+        totalWeeks >= 1.0 ? totalCompletions / totalWeeks : totalCompletions.toDouble();
 
-    // Consistency score (0-100)
-    // Weighted: 40% completion rate, 30% current streak factor, 30% break penalty
+    // ── Consistency Score (0-100) ──
+    // Weighted: 50% completion rate, 25% current streak factor, 25% break penalty
     final streakFactor = totalDays > 0
         ? (currentStreak / totalDays * 100).clamp(0.0, 100.0)
         : 0.0;
@@ -128,7 +138,7 @@ class StreakCalculator {
         ? ((1 - longestBreak / totalDays) * 100).clamp(0.0, 100.0)
         : 0.0;
     final double consistencyScore =
-        (completionPercentage * 0.4 + streakFactor * 0.3 + breakPenalty * 0.3)
+        (completionPercentage * 0.5 + streakFactor * 0.25 + breakPenalty * 0.25)
             .clamp(0.0, 100.0);
 
     return HabitStats(
@@ -155,13 +165,17 @@ class StreakCalculator {
     final result = <WeeklyData>[];
 
     for (int w = weeks - 1; w >= 0; w--) {
-      final weekStart = today.subtract(Duration(days: today.weekday - 1 + w * 7));
+      final weekStart =
+          today.subtract(Duration(days: today.weekday - 1 + w * 7));
       final weekEnd = weekStart.add(const Duration(days: 6));
 
       int completed = 0;
       for (final record in records) {
-        final d = DateTime(record.date.year, record.date.month, record.date.day);
-        if (!d.isBefore(weekStart) && !d.isAfter(weekEnd) && record.isCompleted) {
+        final d =
+            DateTime(record.date.year, record.date.month, record.date.day);
+        if (!d.isBefore(weekStart) &&
+            !d.isAfter(weekEnd) &&
+            record.isCompleted) {
           completed++;
         }
       }

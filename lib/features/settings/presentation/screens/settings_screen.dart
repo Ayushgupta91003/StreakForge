@@ -3,20 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:streak_forge/core/theme/app_theme.dart';
+import 'package:streak_forge/core/theme/theme_provider.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
+import 'package:streak_forge/features/reminders/presentation/screens/manage_all_reminders_screen.dart';
 import 'package:streak_forge/services/backup_service.dart';
-import 'package:streak_forge/services/notification_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentColor = ref.watch(themeColorProvider);
+
     return CustomScrollView(
       slivers: [
-        SliverAppBar(
+        const SliverAppBar(
           floating: true,
-          title: const Text(
+          title: Text(
             'Settings',
             style: TextStyle(
               fontSize: 24,
@@ -31,8 +34,38 @@ class SettingsScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ─── Data Section ───
-                _SectionHeader(title: 'Data'),
+                // ─── Appearance ───
+                const _SectionHeader(title: 'APPEARANCE'),
+                const SizedBox(height: 8),
+                _ThemeColorPicker(
+                  currentColor: currentColor,
+                  onColorSelected: (color) {
+                    ref.read(themeColorProvider.notifier).setColor(color);
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // ─── Reminders ───
+                const _SectionHeader(title: 'REMINDERS'),
+                const SizedBox(height: 8),
+                _SettingsTile(
+                  icon: Icons.notifications_active_rounded,
+                  iconColor: AppColors.accent,
+                  title: 'Manage Reminders',
+                  subtitle: 'View and control all habit reminders',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ManageAllRemindersScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // ─── Data ───
+                const _SectionHeader(title: 'DATA'),
                 const SizedBox(height: 8),
                 _SettingsTile(
                   icon: Icons.file_download_rounded,
@@ -55,28 +88,14 @@ class SettingsScreen extends ConsumerWidget {
                   subtitle: 'Restore from a JSON backup file',
                   onTap: () => _restoreData(context, ref),
                 ),
+                const SizedBox(height: 20),
 
-                const SizedBox(height: 24),
-
-                // ─── Notifications Section ───
-                _SectionHeader(title: 'Notifications'),
-                const SizedBox(height: 8),
-                _SettingsTile(
-                  icon: Icons.notifications_off_rounded,
-                  iconColor: AppColors.error,
-                  title: 'Cancel All Reminders',
-                  subtitle: 'Remove all scheduled notifications',
-                  onTap: () => _cancelAllReminders(context),
-                ),
-
-                const SizedBox(height: 24),
-
-                // ─── About Section ───
-                _SectionHeader(title: 'About'),
+                // ─── About ───
+                const _SectionHeader(title: 'ABOUT'),
                 const SizedBox(height: 8),
                 _SettingsTile(
                   icon: Icons.local_fire_department_rounded,
-                  iconColor: AppColors.primary,
+                  iconColor: currentColor,
                   title: 'StreakForge',
                   subtitle: 'Version 1.0.0',
                   onTap: () {},
@@ -109,7 +128,6 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final isar = ref.read(isarProvider).value;
       if (isar == null) return;
-
       final backup = BackupService(isar);
       await backup.shareCsv();
     } catch (e) {
@@ -125,7 +143,6 @@ class SettingsScreen extends ConsumerWidget {
     try {
       final isar = ref.read(isarProvider).value;
       if (isar == null) return;
-
       final backup = BackupService(isar);
       await backup.shareBackup();
     } catch (e) {
@@ -165,7 +182,6 @@ class SettingsScreen extends ConsumerWidget {
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
-
       if (result == null || result.files.single.path == null) return;
 
       final file = File(result.files.single.path!);
@@ -177,7 +193,6 @@ class SettingsScreen extends ConsumerWidget {
       final backup = BackupService(isar);
       final count = await backup.restoreFromJson(jsonString);
 
-      // Refresh all data
       ref.invalidate(habitListProvider);
       ref.invalidate(todayRecordsProvider);
       ref.invalidate(categoryListProvider);
@@ -198,42 +213,110 @@ class SettingsScreen extends ConsumerWidget {
       }
     }
   }
+}
 
-  Future<void> _cancelAllReminders(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Cancel All Reminders?'),
-        content: const Text(
-          'This will cancel all scheduled notification reminders.',
+// ─── Theme Color Picker ──────────────────────────────────────────────────────
+
+class _ThemeColorPicker extends StatelessWidget {
+  final Color currentColor;
+  final ValueChanged<Color> onColorSelected;
+
+  const _ThemeColorPicker({
+    required this.currentColor,
+    required this.onColorSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.surfaceVariant.withOpacity(0.3),
+          width: 0.5,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: currentColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.palette_rounded,
+                  color: currentColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'App Accent Color',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  Text(
+                    'Tap to change the primary color',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Remove All',
-              style: TextStyle(color: AppColors.error),
-            ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: themeColorOptions.map((color) {
+              final isSelected = color.value == currentColor.value;
+              return GestureDetector(
+                onTap: () => onColorSelected(color),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: isSelected
+                        ? Border.all(color: Colors.white, width: 2.5)
+                        : null,
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                                color: color.withOpacity(0.5),
+                                blurRadius: 8,
+                                spreadRadius: 1)
+                          ]
+                        : null,
+                  ),
+                  child: isSelected
+                      ? const Icon(Icons.check_rounded,
+                          color: Colors.white, size: 20)
+                      : null,
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
     );
-
-    if (confirmed != true) return;
-
-    await NotificationService().cancelAll();
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('All reminders cancelled'),
-        ),
-      );
-    }
   }
 }
 
@@ -249,10 +332,10 @@ class _SectionHeader extends StatelessWidget {
     return Text(
       title,
       style: const TextStyle(
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: FontWeight.w600,
         color: AppColors.textTertiary,
-        letterSpacing: 1.2,
+        letterSpacing: 1.5,
       ),
     );
   }
@@ -318,7 +401,8 @@ class _SettingsTile extends StatelessWidget {
           color: AppColors.textTertiary,
           size: 20,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       ),
     );
   }
