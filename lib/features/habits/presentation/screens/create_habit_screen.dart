@@ -75,8 +75,8 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
             onPressed: _saveHabit,
             child: Text(
               _isEditing ? 'Save' : 'Create',
-              style: const TextStyle(
-                color: AppColors.primary,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
               ),
@@ -341,7 +341,7 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary : AppColors.surfaceLight,
+              color: isSelected ? Theme.of(context).colorScheme.primary : AppColors.surfaceLight,
               borderRadius: BorderRadius.circular(12),
             ),
             alignment: Alignment.center,
@@ -442,8 +442,8 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
           builder: (context, child) {
             return Theme(
               data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.dark(
-                  primary: AppColors.primary,
+                colorScheme: ColorScheme.dark(
+                  primary: Theme.of(context).colorScheme.primary,
                   surface: AppColors.surface,
                   onSurface: AppColors.textPrimary,
                 ),
@@ -463,7 +463,7 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: _reminderTime != null
-                ? AppColors.primary.withOpacity(0.5)
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
                 : AppColors.surfaceVariant,
             width: 1,
           ),
@@ -475,7 +475,7 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
               height: 40,
               decoration: BoxDecoration(
                 color: _reminderTime != null
-                    ? AppColors.primary.withOpacity(0.15)
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
                     : AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -484,7 +484,7 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
                     ? Icons.alarm_on_rounded
                     : Icons.alarm_add_rounded,
                 color: _reminderTime != null
-                    ? AppColors.primary
+                    ? Theme.of(context).colorScheme.primary
                     : AppColors.textTertiary,
                 size: 20,
               ),
@@ -613,11 +613,11 @@ class _SelectionCard extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.12)
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.12)
               : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.surfaceVariant,
+            color: isSelected ? Theme.of(context).colorScheme.primary : AppColors.surfaceVariant,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -626,7 +626,7 @@ class _SelectionCard extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppColors.primary : AppColors.textTertiary,
+              color: isSelected ? Theme.of(context).colorScheme.primary : AppColors.textTertiary,
               size: 24,
             ),
             const SizedBox(height: 10),
@@ -635,7 +635,7 @@ class _SelectionCard extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                color: isSelected ? Theme.of(context).colorScheme.primary : AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 2),
@@ -750,7 +750,7 @@ class _FreqChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surfaceLight,
+          color: isSelected ? Theme.of(context).colorScheme.primary : AppColors.surfaceLight,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Text(

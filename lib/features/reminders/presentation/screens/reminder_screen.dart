@@ -113,12 +113,12 @@ class _ReminderManagementScreenState
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.notifications_off_rounded,
-              color: AppColors.primary,
+              color: Theme.of(context).colorScheme.primary,
               size: 36,
             ),
           ),
@@ -178,14 +178,14 @@ class _ReminderManagementScreenState
               height: 44,
               decoration: BoxDecoration(
                 color: reminder.isEnabled
-                    ? AppColors.primary.withOpacity(0.15)
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
                     : AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 Icons.alarm_rounded,
                 color: reminder.isEnabled
-                    ? AppColors.primary
+                    ? Theme.of(context).colorScheme.primary
                     : AppColors.textTertiary,
                 size: 22,
               ),
@@ -234,8 +234,8 @@ class _ReminderManagementScreenState
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.primary,
+            colorScheme: ColorScheme.dark(
+              primary: Theme.of(context).colorScheme.primary,
               surface: AppColors.surface,
               onSurface: AppColors.textPrimary,
             ),

@@ -116,7 +116,7 @@ class _NavItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.primary.withOpacity(0.15)
+              ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
@@ -125,7 +125,7 @@ class _NavItem extends StatelessWidget {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppColors.primary : AppColors.textTertiary,
+              color: isSelected ? Theme.of(context).colorScheme.primary : AppColors.textTertiary,
               size: 22,
             ),
             if (isSelected) ...[
@@ -133,7 +133,7 @@ class _NavItem extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: AppColors.primary,
+                  color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                 ),
@@ -264,8 +264,8 @@ class _HabitListView extends ConsumerWidget {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.primary,
+            colorScheme: ColorScheme.dark(
+              primary: Theme.of(context).colorScheme.primary,
               onPrimary: Colors.white,
               surface: AppColors.surface,
               onSurface: AppColors.textPrimary,
@@ -345,13 +345,13 @@ class _DateCarouselState extends State<_DateCarousel> {
               width: 48,
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppColors.primary
+                    ? Theme.of(context).colorScheme.primary
                     : isToday
-                        ? AppColors.primary.withOpacity(0.15)
+                        ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
                         : AppColors.surface,
                 borderRadius: BorderRadius.circular(14),
                 border: isToday && !isSelected
-                    ? Border.all(color: AppColors.primary.withOpacity(0.4), width: 1)
+                    ? Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.4), width: 1)
                     : null,
               ),
               child: Column(
@@ -723,12 +723,12 @@ class _EmptyState extends StatelessWidget {
               width: 90,
               height: 90,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(24),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.local_fire_department_rounded,
-                color: AppColors.primary,
+                color: Theme.of(context).colorScheme.primary,
                 size: 48,
               ),
             ),
@@ -773,13 +773,13 @@ class _QuoteBanner extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withOpacity(0.12),
+            Theme.of(context).colorScheme.primary.withOpacity(0.12),
             AppColors.accent.withOpacity(0.08),
           ],
         ),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.2),
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
           width: 0.5,
         ),
       ),
@@ -809,7 +809,7 @@ class _QuoteBanner extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.primary.withOpacity(0.8),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.8),
                   ),
                 ),
               ],

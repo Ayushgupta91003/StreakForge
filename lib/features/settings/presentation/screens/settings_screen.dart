@@ -7,6 +7,7 @@ import 'package:streak_forge/core/theme/theme_provider.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
 import 'package:streak_forge/features/reminders/presentation/screens/manage_all_reminders_screen.dart';
 import 'package:streak_forge/services/backup_service.dart';
+import 'package:streak_forge/services/notification_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -60,6 +61,20 @@ class SettingsScreen extends ConsumerWidget {
                         builder: (_) => const ManageAllRemindersScreen(),
                       ),
                     );
+                  },
+                ),
+                _SettingsTile(
+                  icon: Icons.notifications_none_rounded,
+                  iconColor: AppColors.warning,
+                  title: 'Test Notification',
+                  subtitle: 'Send a test notification now',
+                  onTap: () async {
+                    await NotificationService().showTestNotification();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Test notification sent!')),
+                      );
+                    }
                   },
                 ),
                 const SizedBox(height: 20),

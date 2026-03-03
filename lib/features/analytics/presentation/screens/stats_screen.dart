@@ -115,13 +115,13 @@ class _OverallSummary extends ConsumerWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppColors.primary.withOpacity(0.15),
+              Theme.of(context).colorScheme.primary.withOpacity(0.15),
               AppColors.accent.withOpacity(0.05),
             ],
           ),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppColors.primary.withOpacity(0.2),
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
           ),
         ),
         child: Column(
@@ -133,12 +133,12 @@ class _OverallSummary extends ConsumerWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.insights_rounded,
-                    color: AppColors.primary,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 22,
                   ),
                 ),
@@ -160,7 +160,7 @@ class _OverallSummary extends ConsumerWidget {
                   label: 'Active Habits',
                   value: '${habits.length}',
                   icon: Icons.fact_check_rounded,
-                  color: AppColors.primary,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
                 const SizedBox(width: 12),
                 _OverviewStat(
