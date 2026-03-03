@@ -4,6 +4,7 @@ import 'package:streak_forge/core/theme/app_theme.dart';
 import 'package:streak_forge/core/constants/app_icons.dart';
 import 'package:streak_forge/core/utils/date_utils.dart';
 import 'package:streak_forge/features/habits/data/models/habit.dart';
+import 'package:streak_forge/features/habits/data/models/habit_record.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
 import 'package:streak_forge/features/habits/presentation/screens/create_habit_screen.dart';
 import 'package:streak_forge/core/widgets/heatmap_calendar.dart';
@@ -147,15 +148,29 @@ class HabitDetailScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Activity',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Activity',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.edit_calendar_rounded,
+                              color: color,
+                              size: 22,
+                            ),
+                            tooltip: 'Edit past entries',
+                            onPressed: () => _showDateEditSheet(context, ref, habit, color),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       heatmapAsync.when(
                         loading: () => const SizedBox(
                           height: 120,
@@ -293,6 +308,282 @@ class HabitDetailScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showDateEditSheet(
+      BuildContext context, WidgetRef ref, Habit habit, Color color) async {
+    // 1. Pick a date
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      builder: (ctx, child) {
+        return Theme(
+          data: Theme.of(ctx).copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: color,
+              onPrimary: Colors.white,
+              surface: AppColors.surface,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked == null || !context.mounted) return;
+
+    // 2. Get current record for that date
+    final recordRepo = ref.read(habitRecordRepositoryProvider);
+    final existing = await recordRepo.getRecord(habit.id, picked);
+    if (!context.mounted) return;
+
+    // 3. Show bottom sheet
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return _DateEditSheet(
+          habit: habit,
+          date: picked,
+          existingRecord: existing,
+          color: color,
+        );
+      },
+    );
+  }
+}
+
+// ─── Date Edit Bottom Sheet ──────────────────────────────────────────────────
+
+class _DateEditSheet extends ConsumerStatefulWidget {
+  final Habit habit;
+  final DateTime date;
+  final HabitRecord? existingRecord;
+  final Color color;
+
+  const _DateEditSheet({
+    required this.habit,
+    required this.date,
+    this.existingRecord,
+    required this.color,
+  });
+
+  @override
+  ConsumerState<_DateEditSheet> createState() => _DateEditSheetState();
+}
+
+class _DateEditSheetState extends ConsumerState<_DateEditSheet> {
+  late bool _isCompleted;
+  late double _value;
+
+  @override
+  void initState() {
+    super.initState();
+    _isCompleted = widget.existingRecord?.isCompleted ?? false;
+    _value = widget.existingRecord?.value ?? 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dayStr =
+        '${widget.date.day}/${widget.date.month}/${widget.date.year}';
+
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle bar
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Title
+          Text(
+            'Edit entry for $dayStr',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            widget.habit.name,
+            style: TextStyle(
+              fontSize: 14,
+              color: widget.color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          if (widget.habit.type == HabitType.yesNo) ...[
+            // Yes/No toggle
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildToggleButton('Not Done', !_isCompleted, () {
+                  setState(() => _isCompleted = false);
+                }),
+                const SizedBox(width: 16),
+                _buildToggleButton('Done ✓', _isCompleted, () {
+                  setState(() => _isCompleted = true);
+                }),
+              ],
+            ),
+          ] else ...[
+            // Frequency input
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    setState(() => _value = (_value - 1).clamp(0, 99999));
+                  },
+                  icon: Icon(Icons.remove_circle_outline,
+                      color: widget.color, size: 32),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  _value.toStringAsFixed(_value == _value.roundToDouble() ? 0 : 1),
+                  style: const TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (widget.habit.unit != null) ...[
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.habit.unit!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 16),
+                IconButton(
+                  onPressed: () {
+                    setState(() => _value += 1);
+                  },
+                  icon: Icon(Icons.add_circle_outline,
+                      color: widget.color, size: 32),
+                ),
+              ],
+            ),
+          ],
+
+          const SizedBox(height: 24),
+
+          // Save button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.color,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () async {
+                final recordRepo = ref.read(habitRecordRepositoryProvider);
+                if (widget.habit.type == HabitType.yesNo) {
+                  // For yes/no, toggle to the desired state
+                  final existing =
+                      await recordRepo.getRecord(widget.habit.id, widget.date);
+                  if (existing == null) {
+                    if (_isCompleted) {
+                      await recordRepo.toggleCompletion(
+                          widget.habit.id, widget.date);
+                    }
+                  } else if (existing.isCompleted != _isCompleted) {
+                    await recordRepo.toggleCompletion(
+                        widget.habit.id, widget.date);
+                  }
+                } else {
+                  await recordRepo.updateValue(
+                    widget.habit.id,
+                    widget.date,
+                    _value,
+                    isMinTarget: widget.habit.isMinTarget,
+                    targetValue: widget.habit.targetValue ?? 0,
+                  );
+                }
+
+                // Auto-adjust start date
+                final habitRepo = ref.read(habitRepositoryProvider);
+                final habit = await habitRepo.getById(widget.habit.id);
+                if (habit != null) {
+                  final dateOnly = DateTime(
+                      widget.date.year, widget.date.month, widget.date.day);
+                  final createdOnly = DateTime(habit.createdAt.year,
+                      habit.createdAt.month, habit.createdAt.day);
+                  if (dateOnly.isBefore(createdOnly)) {
+                    habit.createdAt = dateOnly;
+                    await habitRepo.save(habit);
+                  }
+                }
+
+                // Invalidate providers to refresh
+                ref.invalidate(habitHeatmapProvider(widget.habit.id));
+                ref.invalidate(habitStatsProvider(widget.habit.id));
+                ref.invalidate(habitWeeklyTrendProvider(widget.habit.id));
+
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text(
+                'Save',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleButton(String label, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+        decoration: BoxDecoration(
+          color: isActive
+              ? widget.color.withOpacity(0.2)
+              : AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive ? widget.color : AppColors.surfaceVariant,
+            width: isActive ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: isActive ? widget.color : AppColors.textTertiary,
+          ),
+        ),
       ),
     );
   }

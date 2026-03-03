@@ -6,7 +6,6 @@ import 'package:streak_forge/features/habits/data/models/habit_record.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
 import 'package:streak_forge/features/habits/presentation/screens/create_habit_screen.dart';
 import 'package:streak_forge/features/habits/presentation/screens/habit_detail_screen.dart';
-import 'package:streak_forge/features/analytics/presentation/screens/stats_screen.dart';
 import 'package:streak_forge/features/settings/presentation/screens/settings_screen.dart';
 import 'package:streak_forge/core/utils/date_utils.dart';
 import 'package:streak_forge/core/constants/app_icons.dart';
@@ -21,7 +20,6 @@ class HomeScreen extends ConsumerWidget {
 
     final screens = [
       const _HabitListView(),
-      const StatsScreen(),
       const SettingsScreen(),
     ];
 
@@ -74,16 +72,10 @@ class HomeScreen extends ConsumerWidget {
                 onTap: () => ref.read(bottomNavIndexProvider.notifier).state = 0,
               ),
               _NavItem(
-                icon: Icons.analytics_rounded,
-                label: 'Stats',
-                isSelected: index == 1,
-                onTap: () => ref.read(bottomNavIndexProvider.notifier).state = 1,
-              ),
-              _NavItem(
                 icon: Icons.settings_rounded,
                 label: 'Settings',
-                isSelected: index == 2,
-                onTap: () => ref.read(bottomNavIndexProvider.notifier).state = 2,
+                isSelected: index == 1,
+                onTap: () => ref.read(bottomNavIndexProvider.notifier).state = 1,
               ),
             ],
           ),
@@ -298,17 +290,50 @@ class _DateCarousel extends StatefulWidget {
 
 class _DateCarouselState extends State<_DateCarousel> {
   late final ScrollController _scrollController;
+  // Large number of past days for "infinite" scrollback
+  static const int _totalPastDays = 3650; // ~10 years
+  static const double _itemWidth = 56.0; // 48 + 8 margin
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Scroll to show today
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-      }
+      _scrollToDate(widget.selectedDate, animate: false);
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant _DateCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.selectedDate.isSameDay(widget.selectedDate)) {
+      _scrollToDate(widget.selectedDate, animate: true);
+    }
+  }
+
+  void _scrollToDate(DateTime date, {bool animate = true}) {
+    if (!_scrollController.hasClients) return;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+    final daysFromToday = today.difference(target).inDays;
+    // todayIndex is at (_totalPastDays), so target is at (_totalPastDays - daysFromToday)
+    final targetIndex = _totalPastDays - daysFromToday;
+    final offset = (targetIndex * _itemWidth) -
+        (MediaQuery.of(context).size.width / 2 - _itemWidth / 2);
+    final clampedOffset = offset.clamp(
+      _scrollController.position.minScrollExtent,
+      _scrollController.position.maxScrollExtent,
+    );
+    if (animate) {
+      _scrollController.animateTo(
+        clampedOffset,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    } else {
+      _scrollController.jumpTo(clampedOffset);
+    }
   }
 
   @override
@@ -319,11 +344,10 @@ class _DateCarouselState extends State<_DateCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    final today = DateTime.now();
-    final dates = List.generate(
-      14,
-      (i) => today.subtract(Duration(days: 13 - i)),
-    );
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // Items: _totalPastDays past days + today = _totalPastDays + 1 items
+    final itemCount = _totalPastDays + 1;
 
     return SizedBox(
       height: 72,
@@ -331,9 +355,11 @@ class _DateCarouselState extends State<_DateCarousel> {
         controller: _scrollController,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        itemCount: dates.length,
+        itemCount: itemCount,
+        itemExtent: _itemWidth,
         itemBuilder: (context, index) {
-          final date = dates[index];
+          final daysAgo = _totalPastDays - index;
+          final date = today.subtract(Duration(days: daysAgo));
           final isSelected = date.isSameDay(widget.selectedDate);
           final isToday = date.isToday;
 
@@ -498,31 +524,55 @@ class _HabitCard extends ConsumerWidget {
                 isCompleted: isCompleted,
                 color: color,
                 isPositive: habit.isPositive,
-                onTap: () {
-                  ref.read(todayRecordsProvider.notifier).toggleHabit(habit.id);
+                onTap: () async {
+                  final adjusted = await ref.read(todayRecordsProvider.notifier).toggleHabit(habit.id);
+                  if (adjusted && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('📅 Habit start date moved back to match this entry'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
                 },
               )
             else
               _FrequencyInput(
                 value: record?.value ?? 0,
                 color: color,
-                onIncrement: () {
+                onIncrement: () async {
                   final newVal = (record?.value ?? 0) + 1;
-                  ref.read(todayRecordsProvider.notifier).updateFrequencyValue(
+                  final adjusted = await ref.read(todayRecordsProvider.notifier).updateFrequencyValue(
                     habit.id,
                     newVal,
                     isMinTarget: habit.isMinTarget,
                     targetValue: habit.targetValue ?? 0,
                   );
+                  if (adjusted && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('📅 Habit start date moved back to match this entry'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
                 },
-                onDecrement: () {
+                onDecrement: () async {
                   final newVal = ((record?.value ?? 0) - 1).clamp(0.0, double.maxFinite).toDouble();
-                  ref.read(todayRecordsProvider.notifier).updateFrequencyValue(
+                  final adjusted = await ref.read(todayRecordsProvider.notifier).updateFrequencyValue(
                     habit.id,
                     newVal,
                     isMinTarget: habit.isMinTarget,
                     targetValue: habit.targetValue ?? 0,
                   );
+                  if (adjusted && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('📅 Habit start date moved back to match this entry'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  }
                 },
               ),
           ],

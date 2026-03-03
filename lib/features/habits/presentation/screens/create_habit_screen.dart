@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:streak_forge/core/theme/app_theme.dart';
 import 'package:streak_forge/core/constants/app_icons.dart';
 import 'package:streak_forge/features/habits/data/models/habit.dart';
@@ -32,6 +33,7 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
   String _selectedIcon = 'star';
   int _selectedColorIndex = 0;
   TimeOfDay? _reminderTime;
+  DateTime _startDate = DateTime.now();
 
   bool get _isEditing => widget.existingHabit != null;
 
@@ -53,6 +55,7 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
       _selectedColorIndex = AppColors.habitColors
           .indexWhere((c) => c.value == h.color)
           .clamp(0, AppColors.habitColors.length - 1);
+      _startDate = h.createdAt;
     }
   }
 
@@ -171,6 +174,12 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
               const SizedBox(height: 12),
               _buildCustomDaySelector(),
             ],
+            const SizedBox(height: 24),
+
+            // ─── Start Date ───
+            _buildSectionTitle('Start Date'),
+            const SizedBox(height: 10),
+            _buildStartDatePicker(),
             const SizedBox(height: 24),
 
             // ─── Icon ───
@@ -356,6 +365,91 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
           ),
         );
       }),
+    );
+  }
+
+  Widget _buildStartDatePicker() {
+    return GestureDetector(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: _startDate,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: ColorScheme.dark(
+                  primary: Theme.of(context).colorScheme.primary,
+                  onPrimary: Colors.white,
+                  surface: AppColors.surface,
+                  onSurface: AppColors.textPrimary,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (picked != null) {
+          setState(() => _startDate = picked);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: AppColors.surfaceVariant,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.calendar_today_rounded,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    DateFormat('EEEE, MMM d, yyyy').format(_startDate),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const Text(
+                    'Tap to change start date',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.edit_calendar_rounded,
+              color: AppColors.textTertiary,
+              size: 18,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -548,6 +642,7 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
     habit.color = AppColors.habitColors[_selectedColorIndex].value;
     habit.frequency = _frequency;
     habit.customDays = _customDays;
+    habit.createdAt = _startDate;
 
     if (_type == HabitType.frequency) {
       habit.targetValue = double.tryParse(_targetController.text) ?? 0;
