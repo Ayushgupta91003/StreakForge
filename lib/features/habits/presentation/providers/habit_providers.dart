@@ -108,18 +108,21 @@ class TodayRecordsNotifier extends AsyncNotifier<Map<int, HabitRecord>> {
     return {for (var r in records) r.habitId: r};
   }
 
-  Future<void> toggleHabit(int habitId) async {
+  /// Returns true if the habit's start date was adjusted backwards
+  Future<bool> toggleHabit(int habitId) async {
     final repo = ref.read(habitRecordRepositoryProvider);
     final date = ref.read(selectedDateProvider);
     await repo.toggleCompletion(habitId, date);
 
     // Auto-adjust createdAt if marking before the start date
-    await _adjustStartDateIfNeeded(habitId, date);
+    final adjusted = await _adjustStartDateIfNeeded(habitId, date);
 
     ref.invalidateSelf();
+    return adjusted;
   }
 
-  Future<void> updateFrequencyValue(
+  /// Returns true if the habit's start date was adjusted backwards
+  Future<bool> updateFrequencyValue(
     int habitId,
     double value, {
     required bool isMinTarget,
@@ -136,16 +139,18 @@ class TodayRecordsNotifier extends AsyncNotifier<Map<int, HabitRecord>> {
     );
 
     // Auto-adjust createdAt if marking before the start date
-    await _adjustStartDateIfNeeded(habitId, date);
+    final adjusted = await _adjustStartDateIfNeeded(habitId, date);
 
     ref.invalidateSelf();
+    return adjusted;
   }
 
-  /// Moves habit.createdAt back if the user marks a day before the current start date
-  Future<void> _adjustStartDateIfNeeded(int habitId, DateTime date) async {
+  /// Moves habit.createdAt back if the user marks a day before the current start date.
+  /// Returns true if the date was adjusted.
+  Future<bool> _adjustStartDateIfNeeded(int habitId, DateTime date) async {
     final habitRepo = ref.read(habitRepositoryProvider);
     final habit = await habitRepo.getById(habitId);
-    if (habit == null) return;
+    if (habit == null) return false;
 
     final dateOnly = DateTime(date.year, date.month, date.day);
     final createdOnly = DateTime(
@@ -157,7 +162,9 @@ class TodayRecordsNotifier extends AsyncNotifier<Map<int, HabitRecord>> {
     if (dateOnly.isBefore(createdOnly)) {
       habit.createdAt = dateOnly;
       await habitRepo.save(habit);
+      return true;
     }
+    return false;
   }
 }
 
