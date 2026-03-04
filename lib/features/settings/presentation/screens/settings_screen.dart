@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:streak_forge/core/theme/app_theme.dart';
 import 'package:streak_forge/core/theme/theme_provider.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
@@ -108,29 +109,72 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // ─── About ───
-                const _SectionHeader(title: 'ABOUT'),
+                // ─── Feedback ───
+                const _SectionHeader(title: 'FEEDBACK'),
                 const SizedBox(height: 8),
                 _SettingsTile(
-                  icon: Icons.local_fire_department_rounded,
-                  iconColor: currentColor,
-                  title: 'StreakForge',
-                  subtitle: 'Version 1.0.0',
-                  onTap: () {},
-                ),
-                _SettingsTile(
-                  icon: Icons.code_rounded,
+                  icon: Icons.mail_outline_rounded,
                   iconColor: AppColors.accent,
-                  title: 'Source Code',
-                  subtitle: 'github.com/Ayushgupta91003/StreakForge',
-                  onTap: () {},
+                  title: 'Send Feedback',
+                  subtitle: 'Share your thoughts or report issues',
+                  onTap: () async {
+                    final uri = Uri(
+                      scheme: 'mailto',
+                      path: 'ayush91003@gmail.com',
+                      queryParameters: {
+                        'subject': 'StreakForge Feedback',
+                      },
+                    );
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    } else if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('No email app found')),
+                      );
+                    }
+                  },
                 ),
-                _SettingsTile(
-                  icon: Icons.favorite_rounded,
-                  iconColor: AppColors.error,
-                  title: 'Made with ❤️',
-                  subtitle: 'Built with Flutter & Isar',
-                  onTap: () {},
+                const SizedBox(height: 20),
+
+                // ─── Footer ───
+                const SizedBox(height: 20),
+                Center(
+                  child: Column(
+                    children: [
+                      Text(
+                        'StreakForge v1.0.0',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Made with ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                          Icon(
+                            Icons.favorite,
+                            size: 14,
+                            color: Colors.red,
+                          ),
+                          Text(
+                            ' by Ayush Gupta',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 40),
