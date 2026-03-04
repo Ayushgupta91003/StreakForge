@@ -111,7 +111,7 @@ class _HabitListView extends ConsumerWidget {
 
         const SliverToBoxAdapter(child: SizedBox(height: 8)),
 
-        // Habit list
+        // Habit list — split into pending / completed
         habitsAsync.when(
           loading: () => const SliverFillRemaining(
             child: Center(child: CircularProgressIndicator()),
@@ -133,33 +133,61 @@ class _HabitListView extends ConsumerWidget {
               error: (e, _) => SliverFillRemaining(
                 child: Center(child: Text('Error: $e')),
               ),
-              data: (records) => SliverPadding(
-                padding: const EdgeInsets.only(bottom: 100),
-                sliver: SliverReorderableList(
-                  itemCount: habits.length,
-                  onReorder: (oldIndex, newIndex) {
-                    final reordered = List<Habit>.from(habits);
-                    if (newIndex > oldIndex) newIndex--;
-                    final item = reordered.removeAt(oldIndex);
-                    reordered.insert(newIndex, item);
-                    // Update order
-                    for (int i = 0; i < reordered.length; i++) {
-                      reordered[i].order = i;
-                    }
-                    ref.read(habitListProvider.notifier).reorderHabits(reordered);
-                  },
-                  itemBuilder: (context, index) {
-                    return ReorderableDragStartListener(
-                      key: ValueKey(habits[index].id),
-                      index: index,
-                      child: _HabitCard(
-                        habit: habits[index],
-                        record: records[habits[index].id],
+              data: (records) {
+                // Split habits into pending and completed
+                final pending = <Habit>[];
+                final completed = <Habit>[];
+                for (final h in habits) {
+                  final rec = records[h.id];
+                  if (rec != null && rec.isCompleted) {
+                    completed.add(h);
+                  } else {
+                    pending.add(h);
+                  }
+                }
+
+                return SliverList(
+                  delegate: SliverChildListDelegate([
+                    // ── Pending habits (reorderable) ──
+                    ...pending.map((h) => _HabitCard(
+                          key: ValueKey('pending_${h.id}'),
+                          habit: h,
+                          record: records[h.id],
+                        )),
+
+                    // ── Completed section ──
+                    if (completed.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle_outline_rounded,
+                                size: 18, color: AppColors.textTertiary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Completed (${completed.length})',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textTertiary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                ),
-              ),
+                      ...completed.map((h) => _HabitCard(
+                            key: ValueKey('completed_${h.id}'),
+                            habit: h,
+                            record: records[h.id],
+                            isInCompletedSection: true,
+                          )),
+                    ],
+
+                    const SizedBox(height: 100),
+                  ]),
+                );
+              },
             );
           },
         ),
@@ -339,10 +367,13 @@ class _DateCarouselState extends State<_DateCarousel> {
 class _HabitCard extends ConsumerWidget {
   final Habit habit;
   final HabitRecord? record;
+  final bool isInCompletedSection;
 
   const _HabitCard({
+    super.key,
     required this.habit,
     this.record,
+    this.isInCompletedSection = false,
   });
 
   @override
@@ -364,14 +395,18 @@ class _HabitCard extends ConsumerWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isCompleted
-              ? color.withOpacity(0.12)
-              : AppColors.card,
+          color: isInCompletedSection
+              ? AppColors.surfaceLight.withOpacity(0.5)
+              : isCompleted
+                  ? color.withOpacity(0.12)
+                  : AppColors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isCompleted
-                ? color.withOpacity(0.3)
-                : AppColors.surfaceVariant.withOpacity(0.5),
+            color: isInCompletedSection
+                ? AppColors.surfaceVariant.withOpacity(0.3)
+                : isCompleted
+                    ? color.withOpacity(0.3)
+                    : AppColors.surfaceVariant.withOpacity(0.5),
             width: 1,
           ),
         ),

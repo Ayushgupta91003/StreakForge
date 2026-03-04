@@ -9,7 +9,7 @@ class ThemeColorNotifier extends Notifier<Color> {
   @override
   Color build() {
     _loadSaved();
-    return const Color(0xFF6C63FF); // default purple
+    return const Color(0xFFF97316); // default orange
   }
 
   Future<void> _loadSaved() async {

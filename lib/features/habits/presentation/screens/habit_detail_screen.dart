@@ -180,6 +180,7 @@ class HabitDetailScreen extends ConsumerWidget {
                         data: (data) => HeatmapCalendar(
                           data: data,
                           color: color,
+                          habitStartDate: habit.createdAt,
                         ),
                       ),
                     ],

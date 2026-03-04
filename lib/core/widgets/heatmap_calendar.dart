@@ -3,18 +3,21 @@ import 'package:streak_forge/core/theme/app_theme.dart';
 
 /// GitHub-style heatmap calendar widget with horizontal scrolling.
 ///
-/// Uses a fixed cell size (12×12) so cells are always readable.
-/// The grid is horizontally scrollable and auto-scrolls to show today.
+/// Uses a fixed cell size so cells are always readable.
+/// Scrollable horizontally, auto-scrolls to show today (right edge).
+/// Accepts an optional [habitStartDate] to limit the range.
 class HeatmapCalendar extends StatefulWidget {
   final Map<DateTime, double> data;
   final Color color;
   final int months;
+  final DateTime? habitStartDate;
 
   const HeatmapCalendar({
     super.key,
     required this.data,
     required this.color,
     this.months = 12,
+    this.habitStartDate,
   });
 
   @override
@@ -27,7 +30,7 @@ class _HeatmapCalendarState extends State<HeatmapCalendar> {
 
   static const double _cellSize = 13.0;
   static const double _gap = 2.0;
-  static const double _colWidth = _cellSize + _gap; // 15.0
+  static const double _colWidth = _cellSize + _gap;
 
   @override
   void initState() {
@@ -35,13 +38,12 @@ class _HeatmapCalendarState extends State<HeatmapCalendar> {
     _scrollController = ScrollController();
     _monthScrollController = ScrollController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Auto-scroll to the right (today)
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
       }
       if (_monthScrollController.hasClients) {
-        _monthScrollController.jumpTo(
-            _monthScrollController.position.maxScrollExtent);
+        _monthScrollController
+            .jumpTo(_monthScrollController.position.maxScrollExtent);
       }
     });
   }
@@ -58,17 +60,23 @@ class _HeatmapCalendarState extends State<HeatmapCalendar> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    // Calculate the start date (beginning of the period, aligned to start of week)
-    final startDate = DateTime(now.year, now.month - widget.months + 1, 1);
+    // Determine start: use habit start date if provided, else N months ago
+    DateTime rangeStart;
+    if (widget.habitStartDate != null) {
+      final hs = widget.habitStartDate!;
+      final fallback = DateTime(now.year, now.month - widget.months + 1, 1);
+      // Use whichever is earlier
+      rangeStart = hs.isBefore(fallback) ? hs : fallback;
+    } else {
+      rangeStart = DateTime(now.year, now.month - widget.months + 1, 1);
+    }
     // Align to Monday
-    final alignedStart = startDate.subtract(
-      Duration(days: (startDate.weekday - 1) % 7),
-    );
+    final alignedStart =
+        rangeStart.subtract(Duration(days: (rangeStart.weekday - 1) % 7));
 
     // Generate all weeks
     final weeks = <List<DateTime?>>[];
     var currentDate = alignedStart;
-
     while (!currentDate.isAfter(today)) {
       final week = <DateTime?>[];
       for (int d = 0; d < 7; d++) {
@@ -82,21 +90,33 @@ class _HeatmapCalendarState extends State<HeatmapCalendar> {
       weeks.add(week);
     }
 
-    // Find max value for intensity scaling
+    // Find max value for intensity
     double maxValue = 1;
     for (final v in widget.data.values) {
       if (v > maxValue) maxValue = v;
     }
 
-    // Month labels with positions
+    // Month/year labels with positions — avoid collisions
     final monthLabels = <String>[];
     final monthPositions = <int>[];
     int? lastMonth;
+    int? lastYear;
     for (int w = 0; w < weeks.length; w++) {
       for (final day in weeks[w]) {
-        if (day != null && day.month != lastMonth) {
+        if (day != null && (day.month != lastMonth || day.year != lastYear)) {
+          // Skip if too close to previous label (< 4 columns apart)
+          if (monthPositions.isNotEmpty &&
+              (w - monthPositions.last) < 4) {
+            break;
+          }
           lastMonth = day.month;
-          monthLabels.add(_monthName(day.month));
+          lastYear = day.year;
+          // Show year on Jan or first label
+          if (day.month == 1 || monthLabels.isEmpty) {
+            monthLabels.add('${_monthName(day.month)} ${day.year}');
+          } else {
+            monthLabels.add(_monthName(day.month));
+          }
           monthPositions.add(w);
           break;
         }
@@ -109,7 +129,7 @@ class _HeatmapCalendarState extends State<HeatmapCalendar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Month labels – scroll in sync
+        // Month labels
         SizedBox(
           height: 16,
           child: Row(
@@ -117,7 +137,7 @@ class _HeatmapCalendarState extends State<HeatmapCalendar> {
               const SizedBox(width: dayLabelWidth),
               Expanded(
                 child: NotificationListener<ScrollNotification>(
-                  onNotification: (_) => true, // absorb
+                  onNotification: (_) => true,
                   child: SingleChildScrollView(
                     controller: _monthScrollController,
                     scrollDirection: Axis.horizontal,
@@ -169,12 +189,10 @@ class _HeatmapCalendarState extends State<HeatmapCalendar> {
                   ],
                 ),
               ),
-
               // Scrollable grid
               Expanded(
                 child: NotificationListener<ScrollNotification>(
                   onNotification: (notification) {
-                    // Sync month labels scroll
                     if (_monthScrollController.hasClients) {
                       _monthScrollController
                           .jumpTo(_scrollController.offset);
@@ -206,11 +224,10 @@ class _HeatmapCalendarState extends State<HeatmapCalendar> {
                                   : 0.0;
 
                               return Padding(
-                                padding:
-                                    const EdgeInsets.all(_gap / 2),
+                                padding: const EdgeInsets.all(_gap / 2),
                                 child: Tooltip(
                                   message:
-                                      '${day.day}/${day.month}/${day.year} — ${value > 0 ? "✓" : "—"}',
+                                      '${day.day}/${day.month}/${day.year} — ${value > 0 ? "✓ ${value > 1 ? value.toStringAsFixed(0) : ""}" : "—"}',
                                   child: Container(
                                     width: _cellSize,
                                     height: _cellSize,

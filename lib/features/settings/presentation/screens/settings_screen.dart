@@ -462,7 +462,9 @@ class _NotificationSoundTileState extends State<_NotificationSoundTile> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Material(
+      color: Colors.transparent,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 6),
       decoration: BoxDecoration(
         color: AppColors.card,
@@ -507,6 +509,7 @@ class _NotificationSoundTileState extends State<_NotificationSoundTile> {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       ),
+    ),
     );
   }
 
