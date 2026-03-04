@@ -687,6 +687,11 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
       }
 
       await ref.read(habitListProvider.notifier).updateHabit(habit);
+
+      // Invalidate detail providers so heatmap/stats/trends refresh
+      ref.invalidate(habitHeatmapProvider(habit.id));
+      ref.invalidate(habitStatsProvider(habit.id));
+      ref.invalidate(habitWeeklyTrendProvider(habit.id));
     } else {
       final newId = await ref.read(habitListProvider.notifier).addHabit(habit);
 

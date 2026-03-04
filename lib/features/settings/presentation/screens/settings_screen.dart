@@ -17,7 +17,8 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentColor = ref.watch(themeColorProvider);
 
-    return CustomScrollView(
+    return Scaffold(
+      body: CustomScrollView(
       slivers: [
         const SliverAppBar(
           floating: true,
@@ -138,6 +139,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ],
+      ),
     );
   }
 

@@ -104,19 +104,15 @@ class _HeatmapCalendarState extends State<HeatmapCalendar> {
     for (int w = 0; w < weeks.length; w++) {
       for (final day in weeks[w]) {
         if (day != null && (day.month != lastMonth || day.year != lastYear)) {
-          // Skip if too close to previous label (< 4 columns apart)
+          // Skip if too close to previous label (< 5 columns apart)
           if (monthPositions.isNotEmpty &&
-              (w - monthPositions.last) < 4) {
+              (w - monthPositions.last) < 5) {
             break;
           }
           lastMonth = day.month;
           lastYear = day.year;
-          // Show year on Jan or first label
-          if (day.month == 1 || monthLabels.isEmpty) {
-            monthLabels.add('${_monthName(day.month)} ${day.year}');
-          } else {
-            monthLabels.add(_monthName(day.month));
-          }
+          // Always show abbreviated year so user knows the year
+          monthLabels.add("${_monthName(day.month)} '${day.year % 100}");
           monthPositions.add(w);
           break;
         }
