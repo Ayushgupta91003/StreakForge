@@ -195,16 +195,26 @@ final habitStatsProvider =
 final habitHeatmapProvider =
     FutureProvider.family<Map<DateTime, double>, int>((ref, habitId) async {
   final recordRepo = ref.watch(habitRecordRepositoryProvider);
+  final habitRepo = ref.watch(habitRepositoryProvider);
   recordRepo.watchAll().listen((_) => ref.invalidateSelf());
 
   final now = DateTime.now();
   final yearAgo = DateTime(now.year - 1, now.month, now.day);
-  final records = await recordRepo.getForDateRange(habitId, yearAgo, now);
+
+  // Get the habit to know its start date
+  final habit = await habitRepo.getById(habitId);
+  final startDate = habit?.createdAt ?? yearAgo;
+  // Use the later of yearAgo or startDate as the lower bound
+  final lowerBound = startDate.isAfter(yearAgo) ? yearAgo : yearAgo;
+
+  final records = await recordRepo.getForDateRange(habitId, lowerBound, now);
 
   final map = <DateTime, double>{};
+  final habitStart = DateTime(startDate.year, startDate.month, startDate.day);
   for (final record in records) {
     final dateKey = DateTime(record.date.year, record.date.month, record.date.day);
-    if (record.isCompleted) {
+    // Only include records on or after the habit start date
+    if (record.isCompleted && !dateKey.isBefore(habitStart)) {
       map[dateKey] = record.value ?? 1.0;
     }
   }
