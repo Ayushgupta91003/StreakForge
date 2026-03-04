@@ -172,7 +172,7 @@ class _SplashScreen extends StatelessWidget {
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
                 valueColor: AlwaysStoppedAnimation(primaryColor),
-              ),
+              ), 
             ),
           ],
         ),

@@ -49,26 +49,36 @@ class _HabitListView extends ConsumerWidget {
         // App Bar
         SliverAppBar(
           floating: true,
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          title: Row(
             children: [
-              const Text(
-                'StreakForge',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
+              Image.asset(
+                'app_icon/01.png',
+                width: 32,
+                height: 32,
               ),
-              Text(
-                selectedDate.isToday
-                    ? 'Today, ${selectedDate.shortFormatted}'
-                    : selectedDate.formatted,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w400,
-                ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'StreakForge',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  Text(
+                    selectedDate.isToday
+                        ? 'Today, ${selectedDate.shortFormatted}'
+                        : selectedDate.formatted,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

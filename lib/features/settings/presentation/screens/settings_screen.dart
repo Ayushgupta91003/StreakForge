@@ -19,7 +19,9 @@ class SettingsScreen extends ConsumerWidget {
     final currentColor = ref.watch(themeColorProvider);
 
     return Scaffold(
-      body: CustomScrollView(
+      body: SafeArea(
+        bottom: false,
+        child: CustomScrollView(
       slivers: [
         const SliverAppBar(
           floating: true,
@@ -183,6 +185,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ],
+      ),
       ),
     );
   }
@@ -483,6 +486,11 @@ class _NotificationSoundTileState extends State<_NotificationSoundTile> {
 
   static const Map<String, String> _soundOptions = {
     'default': 'Default',
+    'gentle_chime': 'Gentle Chime',
+    'soft_ping': 'Soft Ping',
+    'double_tap': 'Double Tap',
+    'rising_bell': 'Rising Bell',
+    'bright_alert': 'Bright Alert',
     'silent': 'Silent',
   };
 
@@ -589,40 +597,47 @@ class _NotificationSoundTileState extends State<_NotificationSoundTile> {
               ),
             ),
             const SizedBox(height: 16),
-            ..._soundOptions.entries.map((entry) {
-              final isSelected = entry.key == _currentSound;
-              return ListTile(
-                leading: Icon(
-                  entry.key == 'silent'
-                      ? Icons.volume_off_rounded
-                      : Icons.volume_up_rounded,
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : AppColors.textTertiary,
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _soundOptions.entries.map((entry) {
+                    final isSelected = entry.key == _currentSound;
+                    return ListTile(
+                      leading: Icon(
+                        entry.key == 'silent'
+                            ? Icons.volume_off_rounded
+                            : Icons.volume_up_rounded,
+                        color: isSelected
+                            ? Theme.of(context).colorScheme.primary
+                            : AppColors.textTertiary,
+                      ),
+                      title: Text(
+                        entry.value,
+                        style: TextStyle(
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.primary
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? Icon(Icons.check_circle_rounded,
+                              color: Theme.of(context).colorScheme.primary)
+                          : null,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      onTap: () {
+                        _savePreference(entry.key);
+                        Navigator.pop(context);
+                      },
+                    );
+                  }).toList(),
                 ),
-                title: Text(
-                  entry.value,
-                  style: TextStyle(
-                    fontWeight:
-                        isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected
-                        ? Theme.of(context).colorScheme.primary
-                        : AppColors.textPrimary,
-                  ),
-                ),
-                trailing: isSelected
-                    ? Icon(Icons.check_circle_rounded,
-                        color: Theme.of(context).colorScheme.primary)
-                    : null,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                onTap: () {
-                  _savePreference(entry.key);
-                  Navigator.pop(context);
-                },
-              );
-            }),
+              ),
+            ),
             const SizedBox(height: 16),
           ],
         ),

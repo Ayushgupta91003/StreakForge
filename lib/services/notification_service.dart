@@ -14,9 +14,18 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
-  String _soundPref = 'default'; // 'default' or 'silent'
+  String _soundPref = 'default'; // 'default', 'silent', or a raw resource name
 
   bool get _playSound => _soundPref != 'silent';
+
+  /// Returns the Android sound URI for the current preference, or null for default/silent.
+  RawResourceAndroidNotificationSound? get _customSound {
+    if (_soundPref == 'default' || _soundPref == 'silent') return null;
+    return RawResourceAndroidNotificationSound(_soundPref);
+  }
+
+  /// Unique channel ID per sound so Android doesn't cache the old sound.
+  String get _channelId => 'streak_forge_reminders_$_soundPref';
 
   void setSoundPreference(String pref) {
     _soundPref = pref;
@@ -148,12 +157,13 @@ class NotificationService {
       scheduled,
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'streak_forge_reminders',
+          _channelId,
           'Habit Reminders',
           channelDescription: 'Daily reminders for your habits',
           importance: Importance.max,
           priority: Priority.max,
           playSound: _playSound,
+          sound: _customSound,
           enableVibration: true,
           icon: '@mipmap/ic_launcher',
           channelShowBadge: true,
@@ -191,12 +201,13 @@ class NotificationService {
         _nextInstanceOfWeekdayTime(day, hour, minute),
         NotificationDetails(
           android: AndroidNotificationDetails(
-            'streak_forge_reminders',
+            _channelId,
             'Habit Reminders',
             channelDescription: 'Daily reminders for your habits',
             importance: Importance.max,
             priority: Priority.max,
             playSound: _playSound,
+            sound: _customSound,
             enableVibration: true,
             icon: '@mipmap/ic_launcher',
             channelShowBadge: true,
@@ -242,12 +253,13 @@ class NotificationService {
       'Notifications are working! Keep forging streaks 💪',
       NotificationDetails(
         android: AndroidNotificationDetails(
-          'streak_forge_reminders',
+          _channelId,
           'Habit Reminders',
           channelDescription: 'Daily reminders for your habits',
           importance: Importance.max,
           priority: Priority.max,
           playSound: _playSound,
+          sound: _customSound,
           enableVibration: true,
           icon: '@mipmap/ic_launcher',
           channelShowBadge: true,

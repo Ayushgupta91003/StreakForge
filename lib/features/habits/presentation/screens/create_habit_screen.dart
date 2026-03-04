@@ -5,6 +5,9 @@ import 'package:streak_forge/core/theme/app_theme.dart';
 import 'package:streak_forge/core/constants/app_icons.dart';
 import 'package:streak_forge/features/habits/data/models/habit.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
+import 'package:streak_forge/features/reminders/data/models/reminder.dart';
+import 'package:streak_forge/features/reminders/presentation/screens/reminder_screen.dart';
+import 'package:streak_forge/services/notification_service.dart';
 
 
 class CreateHabitScreen extends ConsumerStatefulWidget {
@@ -30,6 +33,7 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
   List<int> _customDays = [1, 2, 3, 4, 5, 6, 7];
   String _selectedIcon = 'star';
   int _selectedColorIndex = 0;
+  TimeOfDay? _reminderTime;
 
   DateTime _startDate = DateTime.now();
 
@@ -54,6 +58,25 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
           .indexWhere((c) => c.value == h.color)
           .clamp(0, AppColors.habitColors.length - 1);
       _startDate = h.createdAt;
+      _loadExistingReminder();
+    }
+  }
+
+  Future<void> _loadExistingReminder() async {
+    // Wait until build is done to safely use ref
+    await Future.delayed(Duration.zero);
+    if (!mounted) return;
+    
+    final repo = ref.read(reminderRepositoryProvider);
+    final reminders = await repo.getForHabit(widget.existingHabit!.id);
+    if (reminders.isNotEmpty && mounted) {
+      final rem = reminders.first;
+      setState(() {
+        _reminderTime = TimeOfDay(
+          hour: rem.timeInMinutes ~/ 60,
+          minute: rem.timeInMinutes % 60,
+        );
+      });
     }
   }
 
@@ -192,6 +215,10 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
             _buildColorPicker(),
             const SizedBox(height: 24),
 
+            // ─── Reminder ───
+            _buildSectionTitle('Reminder (optional)'),
+            const SizedBox(height: 10),
+            _buildReminderPicker(),
             const SizedBox(height: 40),
             const SizedBox(height: 40),
           ],
@@ -523,8 +550,108 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
     );
   }
 
+  Widget _buildReminderPicker() {
+    return GestureDetector(
+      onTap: () async {
+        final time = await showTimePicker(
+          context: context,
+          initialTime: _reminderTime ?? const TimeOfDay(hour: 8, minute: 0),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: ColorScheme.dark(
+                  primary: Theme.of(context).colorScheme.primary,
+                  surface: AppColors.surface,
+                  onSurface: AppColors.textPrimary,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        if (time != null) {
+          setState(() => _reminderTime = time);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: _reminderTime != null
+                ? Theme.of(context).colorScheme.primary.withOpacity(0.5)
+                : AppColors.surfaceVariant,
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: _reminderTime != null
+                    ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
+                    : AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                _reminderTime != null
+                    ? Icons.alarm_on_rounded
+                    : Icons.alarm_add_rounded,
+                color: _reminderTime != null
+                    ? Theme.of(context).colorScheme.primary
+                    : AppColors.textTertiary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _reminderTime != null
+                        ? 'Reminder at ${_reminderTime!.format(context)}'
+                        : 'Tap to set a daily reminder',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _reminderTime != null
+                          ? AppColors.textPrimary
+                          : AppColors.textTertiary,
+                    ),
+                  ),
+                  if (_reminderTime != null)
+                    const Text(
+                      'Every day',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (_reminderTime != null)
+              GestureDetector(
+                onTap: () => setState(() => _reminderTime = null),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: AppColors.textTertiary,
+                  size: 20,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   // ─── Save ────────────────────────────────────────────────────────────────────
+
 
   Future<void> _saveHabit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -585,18 +712,57 @@ class _CreateHabitScreenState extends ConsumerState<CreateHabitScreen> {
       }
 
       await ref.read(habitListProvider.notifier).updateHabit(habit);
+      await _handleReminders(habit.id, habit.name);
 
       // Invalidate detail providers so heatmap/stats/trends refresh
       ref.invalidate(habitHeatmapProvider(habit.id));
       ref.invalidate(habitStatsProvider(habit.id));
       ref.invalidate(habitWeeklyTrendProvider(habit.id));
     } else {
-      await ref.read(habitListProvider.notifier).addHabit(habit);
+      final newId = await ref.read(habitListProvider.notifier).addHabit(habit);
+      await _handleReminders(newId, habit.name);
     }
 
     if (mounted) Navigator.pop(context);
   }
+
+  Future<void> _handleReminders(int habitId, String habitName) async {
+    final repo = ref.read(reminderRepositoryProvider);
+    final existingReminders = await repo.getForHabit(habitId);
+
+    if (_reminderTime == null) {
+      // User removed the reminder or didn't set one
+      for (final rem in existingReminders) {
+        await repo.delete(rem.id);
+        await NotificationService().cancel(rem.id * 100);
+      }
+    } else {
+      // User set a new time or updated existing
+      Reminder reminder;
+      if (existingReminders.isNotEmpty) {
+        reminder = existingReminders.first;
+      } else {
+        reminder = Reminder()
+          ..habitId = habitId
+          ..days = [1, 2, 3, 4, 5, 6, 7]
+          ..isEnabled = true;
+      }
+
+      reminder.timeInMinutes = _reminderTime!.hour * 60 + _reminderTime!.minute;
+      final remId = await repo.save(reminder);
+
+      await NotificationService().scheduleDaily(
+        id: remId * 100,
+        title: habitName,
+        body: 'Time to work on your habit! 💪',
+        hour: _reminderTime!.hour,
+        minute: _reminderTime!.minute,
+        payload: '$habitId',
+      );
+    }
+  }
 }
+
 
 // ─── Reusable widgets ────────────────────────────────────────────────────────
 
