@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:streak_forge/core/theme/app_theme.dart';
 
-/// GitHub-style heatmap calendar widget
-class HeatmapCalendar extends StatelessWidget {
+/// GitHub-style heatmap calendar widget with horizontal scrolling.
+///
+/// Uses a fixed cell size (12×12) so cells are always readable.
+/// The grid is horizontally scrollable and auto-scrolls to show today.
+class HeatmapCalendar extends StatefulWidget {
   final Map<DateTime, double> data;
   final Color color;
   final int months;
@@ -15,12 +18,48 @@ class HeatmapCalendar extends StatelessWidget {
   });
 
   @override
+  State<HeatmapCalendar> createState() => _HeatmapCalendarState();
+}
+
+class _HeatmapCalendarState extends State<HeatmapCalendar> {
+  late final ScrollController _scrollController;
+  late final ScrollController _monthScrollController;
+
+  static const double _cellSize = 13.0;
+  static const double _gap = 2.0;
+  static const double _colWidth = _cellSize + _gap; // 15.0
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _monthScrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Auto-scroll to the right (today)
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+      if (_monthScrollController.hasClients) {
+        _monthScrollController.jumpTo(
+            _monthScrollController.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _monthScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    
+
     // Calculate the start date (beginning of the period, aligned to start of week)
-    final startDate = DateTime(now.year, now.month - months + 1, 1);
+    final startDate = DateTime(now.year, now.month - widget.months + 1, 1);
     // Align to Monday
     final alignedStart = startDate.subtract(
       Duration(days: (startDate.weekday - 1) % 7),
@@ -45,11 +84,11 @@ class HeatmapCalendar extends StatelessWidget {
 
     // Find max value for intensity scaling
     double maxValue = 1;
-    for (final v in data.values) {
+    for (final v in widget.data.values) {
       if (v > maxValue) maxValue = v;
     }
 
-    // Month labels
+    // Month labels with positions
     final monthLabels = <String>[];
     final monthPositions = <int>[];
     int? lastMonth;
@@ -64,35 +103,44 @@ class HeatmapCalendar extends StatelessWidget {
       }
     }
 
+    final gridWidth = weeks.length * _colWidth;
+    const dayLabelWidth = 24.0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Month labels
+        // Month labels – scroll in sync
         SizedBox(
           height: 16,
           child: Row(
             children: [
-              const SizedBox(width: 24), // Space for day labels
+              const SizedBox(width: dayLabelWidth),
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final cellWidth = constraints.maxWidth / weeks.length;
-                    return Stack(
-                      children: List.generate(monthLabels.length, (i) {
-                        return Positioned(
-                          left: monthPositions[i] * cellWidth,
-                          child: Text(
-                            monthLabels[i],
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: AppColors.textTertiary,
-                              fontWeight: FontWeight.w500,
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (_) => true, // absorb
+                  child: SingleChildScrollView(
+                    controller: _monthScrollController,
+                    scrollDirection: Axis.horizontal,
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: SizedBox(
+                      width: gridWidth,
+                      child: Stack(
+                        children: List.generate(monthLabels.length, (i) {
+                          return Positioned(
+                            left: monthPositions[i] * _colWidth,
+                            child: Text(
+                              monthLabels[i],
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textTertiary,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
-                          ),
-                        );
-                      }),
-                    );
-                  },
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -101,79 +149,89 @@ class HeatmapCalendar extends StatelessWidget {
         const SizedBox(height: 4),
 
         // Heatmap grid
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Day labels
-            SizedBox(
-              width: 24,
-              child: Column(
-                children: [
-                  const SizedBox(height: 0),
-                  _dayLabel('M'),
-                  _dayLabel(''),
-                  _dayLabel('W'),
-                  _dayLabel(''),
-                  _dayLabel('F'),
-                  _dayLabel(''),
-                  _dayLabel('S'),
-                ],
+        SizedBox(
+          height: 7 * (_cellSize + _gap),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Day labels
+              SizedBox(
+                width: dayLabelWidth,
+                child: Column(
+                  children: [
+                    _dayLabel('M'),
+                    _dayLabel(''),
+                    _dayLabel('W'),
+                    _dayLabel(''),
+                    _dayLabel('F'),
+                    _dayLabel(''),
+                    _dayLabel('S'),
+                  ],
+                ),
               ),
-            ),
 
-            // Grid
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final cellSize =
-                      (constraints.maxWidth / weeks.length).clamp(4.0, 14.0);
-                  final gap = (cellSize * 0.15).clamp(1.0, 2.0);
-
-                  return SingleChildScrollView(
+              // Scrollable grid
+              Expanded(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (notification) {
+                    // Sync month labels scroll
+                    if (_monthScrollController.hasClients) {
+                      _monthScrollController
+                          .jumpTo(_scrollController.offset);
+                    }
+                    return false;
+                  },
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
                     scrollDirection: Axis.horizontal,
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: weeks.map((week) {
-                        return Column(
-                          children: week.map((day) {
-                            if (day == null) {
-                              return SizedBox(
-                                width: cellSize,
-                                height: cellSize,
-                              );
-                            }
+                        return SizedBox(
+                          width: _colWidth,
+                          child: Column(
+                            children: week.map((day) {
+                              if (day == null) {
+                                return SizedBox(
+                                  width: _cellSize,
+                                  height: _cellSize + _gap,
+                                );
+                              }
 
-                            final key = DateTime(day.year, day.month, day.day);
-                            final value = data[key] ?? 0;
-                            final intensity = maxValue > 0
-                                ? (value / maxValue).clamp(0.0, 1.0)
-                                : 0.0;
+                              final key =
+                                  DateTime(day.year, day.month, day.day);
+                              final value = widget.data[key] ?? 0;
+                              final intensity = maxValue > 0
+                                  ? (value / maxValue).clamp(0.0, 1.0)
+                                  : 0.0;
 
-                            return Padding(
-                              padding: EdgeInsets.all(gap / 2),
-                              child: Tooltip(
-                                message:
-                                    '${day.day}/${day.month} — ${value > 0 ? "✓" : "—"}',
-                                child: Container(
-                                  width: cellSize - gap,
-                                  height: cellSize - gap,
-                                  decoration: BoxDecoration(
-                                    color: _getCellColor(intensity),
-                                    borderRadius:
-                                        BorderRadius.circular(cellSize * 0.2),
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.all(_gap / 2),
+                                child: Tooltip(
+                                  message:
+                                      '${day.day}/${day.month}/${day.year} — ${value > 0 ? "✓" : "—"}',
+                                  child: Container(
+                                    width: _cellSize,
+                                    height: _cellSize,
+                                    decoration: BoxDecoration(
+                                      color: _getCellColor(intensity),
+                                      borderRadius:
+                                          BorderRadius.circular(3),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          }).toList(),
+                              );
+                            }).toList(),
+                          ),
                         );
                       }).toList(),
                     ),
-                  );
-                },
+                  ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
 
         const SizedBox(height: 8),
@@ -213,20 +271,22 @@ class HeatmapCalendar extends StatelessWidget {
 
   Color _getCellColor(double intensity) {
     if (intensity <= 0) return AppColors.heatmapEmpty;
-    if (intensity <= 0.25) return color.withOpacity(0.25);
-    if (intensity <= 0.5) return color.withOpacity(0.45);
-    if (intensity <= 0.75) return color.withOpacity(0.7);
-    return color;
+    if (intensity <= 0.25) return widget.color.withOpacity(0.25);
+    if (intensity <= 0.5) return widget.color.withOpacity(0.45);
+    if (intensity <= 0.75) return widget.color.withOpacity(0.7);
+    return widget.color;
   }
 
   Widget _dayLabel(String text) {
     return SizedBox(
-      height: 14,
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontSize: 10,
-          color: AppColors.textTertiary,
+      height: _cellSize + _gap,
+      child: Center(
+        child: Text(
+          text,
+          style: const TextStyle(
+            fontSize: 10,
+            color: AppColors.textTertiary,
+          ),
         ),
       ),
     );

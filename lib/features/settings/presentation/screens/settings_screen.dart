@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streak_forge/core/theme/app_theme.dart';
 import 'package:streak_forge/core/theme/theme_provider.dart';
 import 'package:streak_forge/features/habits/presentation/providers/habit_providers.dart';
@@ -77,6 +78,7 @@ class SettingsScreen extends ConsumerWidget {
                     }
                   },
                 ),
+                _NotificationSoundTile(),
                 const SizedBox(height: 20),
 
                 // ─── Data ───
@@ -422,3 +424,161 @@ class _SettingsTile extends StatelessWidget {
     );
   }
 }
+
+// ─── Notification Sound Picker ───────────────────────────────────────────────
+
+class _NotificationSoundTile extends StatefulWidget {
+  @override
+  State<_NotificationSoundTile> createState() => _NotificationSoundTileState();
+}
+
+class _NotificationSoundTileState extends State<_NotificationSoundTile> {
+  String _currentSound = 'default';
+
+  static const Map<String, String> _soundOptions = {
+    'default': 'Default',
+    'silent': 'Silent',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreference();
+  }
+
+  Future<void> _loadPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _currentSound = prefs.getString('notification_sound') ?? 'default';
+    });
+  }
+
+  Future<void> _savePreference(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('notification_sound', value);
+    NotificationService().setSoundPreference(value);
+    setState(() => _currentSound = value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.surfaceVariant.withOpacity(0.3),
+          width: 0.5,
+        ),
+      ),
+      child: ListTile(
+        onTap: () => _showSoundPicker(context),
+        leading: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.info.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.volume_up_rounded,
+              color: AppColors.info, size: 20),
+        ),
+        title: const Text(
+          'Notification Sound',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        subtitle: Text(
+          _soundOptions[_currentSound] ?? 'Default',
+          style: const TextStyle(
+            fontSize: 12,
+            color: AppColors.textTertiary,
+          ),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: AppColors.textTertiary,
+          size: 20,
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      ),
+    );
+  }
+
+  void _showSoundPicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Notification Sound',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ..._soundOptions.entries.map((entry) {
+              final isSelected = entry.key == _currentSound;
+              return ListTile(
+                leading: Icon(
+                  entry.key == 'silent'
+                      ? Icons.volume_off_rounded
+                      : Icons.volume_up_rounded,
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : AppColors.textTertiary,
+                ),
+                title: Text(
+                  entry.value,
+                  style: TextStyle(
+                    fontWeight:
+                        isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : AppColors.textPrimary,
+                  ),
+                ),
+                trailing: isSelected
+                    ? Icon(Icons.check_circle_rounded,
+                        color: Theme.of(context).colorScheme.primary)
+                    : null,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                onTap: () {
+                  _savePreference(entry.key);
+                  Navigator.pop(context);
+                },
+              );
+            }),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

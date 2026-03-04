@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 
@@ -13,6 +14,13 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+  String _soundPref = 'default'; // 'default' or 'silent'
+
+  bool get _playSound => _soundPref != 'silent';
+
+  void setSoundPreference(String pref) {
+    _soundPref = pref;
+  }
 
   Future<void> initialize() async {
     if (_initialized) return;
@@ -70,7 +78,12 @@ class NotificationService {
     }
 
     _initialized = true;
-    debugPrint('NotificationService initialized, timezone: ${tz.local.name}');
+
+    // Load sound preference
+    final prefs = await SharedPreferences.getInstance();
+    _soundPref = prefs.getString('notification_sound') ?? 'default';
+
+    debugPrint('NotificationService initialized, timezone: ${tz.local.name}, sound: $_soundPref');
   }
 
   /// Resolve timezone abbreviation to tz database name
@@ -133,14 +146,14 @@ class NotificationService {
       title,
       body,
       scheduled,
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
           'streak_forge_reminders',
           'Habit Reminders',
           channelDescription: 'Daily reminders for your habits',
           importance: Importance.max,
           priority: Priority.max,
-          playSound: true,
+          playSound: _playSound,
           enableVibration: true,
           icon: '@mipmap/ic_launcher',
           channelShowBadge: true,
@@ -149,7 +162,7 @@ class NotificationService {
         iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
-          presentSound: true,
+          presentSound: _playSound,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -176,14 +189,14 @@ class NotificationService {
         title,
         body,
         _nextInstanceOfWeekdayTime(day, hour, minute),
-        const NotificationDetails(
+        NotificationDetails(
           android: AndroidNotificationDetails(
             'streak_forge_reminders',
             'Habit Reminders',
             channelDescription: 'Daily reminders for your habits',
             importance: Importance.max,
             priority: Priority.max,
-            playSound: true,
+            playSound: _playSound,
             enableVibration: true,
             icon: '@mipmap/ic_launcher',
             channelShowBadge: true,
@@ -192,7 +205,7 @@ class NotificationService {
           iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
-            presentSound: true,
+            presentSound: _playSound,
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -227,14 +240,14 @@ class NotificationService {
       99999,
       'StreakForge 🔥',
       'Notifications are working! Keep forging streaks 💪',
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
           'streak_forge_reminders',
           'Habit Reminders',
           channelDescription: 'Daily reminders for your habits',
           importance: Importance.max,
           priority: Priority.max,
-          playSound: true,
+          playSound: _playSound,
           enableVibration: true,
           icon: '@mipmap/ic_launcher',
           channelShowBadge: true,

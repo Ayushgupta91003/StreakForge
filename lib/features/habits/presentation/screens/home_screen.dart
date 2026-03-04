@@ -135,14 +135,29 @@ class _HabitListView extends ConsumerWidget {
               ),
               data: (records) => SliverPadding(
                 padding: const EdgeInsets.only(bottom: 100),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) => _HabitCard(
-                      habit: habits[index],
-                      record: records[habits[index].id],
-                    ),
-                    childCount: habits.length,
-                  ),
+                sliver: SliverReorderableList(
+                  itemCount: habits.length,
+                  onReorder: (oldIndex, newIndex) {
+                    final reordered = List<Habit>.from(habits);
+                    if (newIndex > oldIndex) newIndex--;
+                    final item = reordered.removeAt(oldIndex);
+                    reordered.insert(newIndex, item);
+                    // Update order
+                    for (int i = 0; i < reordered.length; i++) {
+                      reordered[i].order = i;
+                    }
+                    ref.read(habitListProvider.notifier).reorderHabits(reordered);
+                  },
+                  itemBuilder: (context, index) {
+                    return ReorderableDragStartListener(
+                      key: ValueKey(habits[index].id),
+                      index: index,
+                      child: _HabitCard(
+                        habit: habits[index],
+                        record: records[habits[index].id],
+                      ),
+                    );
+                  },
                 ),
               ),
             );
